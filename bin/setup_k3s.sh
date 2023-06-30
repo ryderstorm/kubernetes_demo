@@ -25,10 +25,8 @@ install_k3s() {
   # from: https://rancher.com/docs/k3s/latest/en/installation/install-options/
   # the --write-kubeconfig-mode 644 flag allows k3s to be run as a non-root user
   run_command "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode 644 --disable=traefik' sh -"
-  tmp_kubeconfig_file="$SCRIPT_DIR/../tmp/k3s.yaml"
-  run_command "cp /etc/rancher/k3s/k3s.yaml $tmp_kubeconfig_file"
-  # export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-  run_command "export KUBECONFIG=$tmp_kubeconfig_file"
+  run_command "cp /etc/rancher/k3s/k3s.yaml $SCRIPT_DIR/../tmp/k3s.yaml"
+  run_command "export KUBECONFIG=$SCRIPT_DIR/../tmp/k3s.yaml"
   run_command "kubectl config rename-context default k3s-local"
   log_success "Successfully installed k3s."
 }
@@ -79,6 +77,6 @@ log_success "Dashboard installed and admin user created."
 k8s_start_proxy
 k8s_show_dashboard_access_instructions
 spacer
-echo -e "\nTo set your kubectl context to use k3s you must run:\n${BLUE}export KUBECONFIG=/etc/rancher/k3s/k3s.yaml${NC}\n"
+echo -e "\nTo set your kubectl context to use k3s you must run:\n${BLUE}export KUBECONFIG=$SCRIPT_DIR/../tmp/k3s.yaml${NC}\n"
 echo -e "To test that it is working, run:\n${BLUE}kubectl get nodes${NC}\n"
 

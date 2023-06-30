@@ -30,8 +30,21 @@ export KUBECONFIG=tmp/k3s.yaml
 
 ## Set up Traefik and demo apps
 
-Run the script that installs Traefik and the demo apps.
+Run the script that installs Traefik and the demo apps via `helm` and `kubectl`.
 
 ```bash
 ./bin/deploy_apps_to_k8s.sh
 ```
+
+## Uninstall k3s
+
+Run the `uninstall_k3s.sh` script to uninstall k3s and remove the local cluster.
+
+```bash
+/usr/local/bin/k3s-uninstall.sh
+```
+
+## References
+
+- [k3s](https://k3s.io/)
+- [k3s Documentation](https://docs.k3s.io/installation)
