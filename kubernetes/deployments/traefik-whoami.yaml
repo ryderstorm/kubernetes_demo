@@ -1,0 +1,46 @@
+# Create the namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik-whoami
+
+# Create the deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik-whoami
+  namespace: traefik-whoami
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: traefik-whoami
+  template:
+    metadata:
+      labels:
+        app: traefik-whoami
+    spec:
+      containers:
+        - name: demo-container
+          image: traefik/whoami
+          ports:
+            - containerPort: 80
+
+# Create the service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-whoami-service
+  namespace: traefik-whoami
+  labels:
+    app: traefik-whoami
+spec:
+  selector:
+    app: traefik-whoami
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
