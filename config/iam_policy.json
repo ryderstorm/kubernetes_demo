@@ -4,7 +4,17 @@
     {
       "Sid": "VisualEditor0",
       "Effect": "Allow",
-      "Action": ["ec2:*", "ecr:*", "eks:*"],
+      "Action": [
+        "ec2:*",
+        "ecr:*",
+        "eks:*",
+        "tag:*",
+        "iam:*",
+        "kms:*",
+        "logs:*",
+        "s3:*",
+        "aws-portal:*"
+      ],
       "Resource": "*"
     }
   ]
