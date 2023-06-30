@@ -9,36 +9,28 @@ set -e
 
 # Import helper library
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-source "$SCRIPT_DIR/../../lib/set_envs.sh"
-source "$SCRIPT_DIR/../../lib/helpers.sh"
-
-export K3S=true
+source "$SCRIPT_DIR/../lib/set_envs.sh"
+source "$SCRIPT_DIR/../lib/helpers.sh"
 
 # =================================================================================================
 # Helper Functions
 # =================================================================================================
 
 k3s_installed() {
-  k3s --version && return 0 || return 1
+  k3s --version 2>/dev/null && return 0 || return 1
 }
 
 install_k3s() {
   log_info "Installing k3s..."
   # from: https://rancher.com/docs/k3s/latest/en/installation/install-options/
   # the --write-kubeconfig-mode 644 flag allows k3s to be run as a non-root user
-  curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode 644" sh -
+  run_command "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode 644 --disable=traefik' sh -"
+  tmp_kubeconfig_file="$SCRIPT_DIR/../tmp/k3s.yaml"
+  run_command "cp /etc/rancher/k3s/k3s.yaml $tmp_kubeconfig_file"
+  # export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+  run_command "export KUBECONFIG=$tmp_kubeconfig_file"
+  run_command "kubectl config rename-context default k3s-local"
   log_success "Successfully installed k3s."
-}
-
-setup_kubeconfig() {
-  spacer
-  log_info "Setting up kubeconfig..."
-  # from:
-  export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-  echo -e "\nThis window is now configured to use k3s. To use k3s in other windows, you must first run:\n${BLUE}export KUBECONFIG=/etc/rancher/k3s/k3s.yaml${NC}\n"
-  echo -e "To test that k3s is working, run:\n${BLUE}kubectl get nodes${NC}\n"
-  echo -e "Press ${BLUE}Enter${NC} to continue."
-  read -r
 }
 
 # =================================================================================================
@@ -65,7 +57,6 @@ if k3s_installed; then
   fi
 else
   install_k3s
-  setup_kubeconfig
 fi
 
 if ! k8s_running; then
@@ -87,3 +78,7 @@ k8_generate_token_for_admin_user
 log_success "Dashboard installed and admin user created."
 k8s_start_proxy
 k8s_show_dashboard_access_instructions
+spacer
+echo -e "\nTo set your kubectl context to use k3s you must run:\n${BLUE}export KUBECONFIG=/etc/rancher/k3s/k3s.yaml${NC}\n"
+echo -e "To test that it is working, run:\n${BLUE}kubectl get nodes${NC}\n"
+

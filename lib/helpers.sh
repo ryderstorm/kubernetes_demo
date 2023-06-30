@@ -122,17 +122,21 @@ graceful_exit() {
   exit "$exit_code"
 }
 
+# =================================================================================================
+# Kubernetes Helper Functions
+# =================================================================================================
+
 k8s_running() {
-  command="kubectl get nodes && return 0 || return 1"
-  if [ "$K3S" = true ]; then command="k3s $command"; fi
-  eval "$command"
+  kubectl get nodes && return 0 || return 1
 }
 
 # Function for checking if the k8s dashboard is installed
 k8s_dashboard_installed() {
-  command="kubectl get ns kubernetes-dashboard && return 0 || return 1"
-  if [ "$K3S" = true ]; then command="k3s $command"; fi
-  eval "$command"
+  kubectl get ns kubernetes-dashboard && return 0 || return 1
+}
+
+k8s_admin_user_exists() {
+  kubectl get sa admin-user -n kubernetes-dashboard && return 0 || return 1
 }
 
 # Kubectl command for installing the latest version of the Kubernetes dashboard
@@ -142,22 +146,14 @@ k8s_install_dashboard() {
   github_url=https://github.com/kubernetes/dashboard/releases
   version_kube_dashboard=$(curl -w '%{url_effective}' -I -L -s -S ${github_url}/latest -o /dev/null | sed -e 's|.*/||')
   command="kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/${version_kube_dashboard}/aio/deploy/recommended.yaml"
-  if [ "$K3S" = true ]; then command="k3s $command"; fi
   run_command "$command"
   log_success "Successfully installed the Kubernetes dashboard"
-}
-
-k8s_admin_user_exists() {
-  command="kubectl get sa admin-user -n kubernetes-dashboard && return 0 || return 1"
-  if [ "$K3S" = true ]; then command="k3s $command"; fi
-  eval "$command"
 }
 
 k8s_create_admin_user() {
   log_info "Creating k8s admin-user..."
   # from: https://docs.k3s.io/installation/kube-dashboard#dashboard-rbac-configuration
-  command="kubectl apply -f $SCRIPT_DIR/../kubernetes/deployments/dashboard.admin-user.yml -f $SCRIPT_DIR/../kubernetes/deployments/dashboard.admin-user-role.yml"
-  if [ "$K3S" = true ]; then command="k3s $command"; fi
+  command="kubectl apply -f $SCRIPT_DIR/../kubernetes/deployments/dashboard/dashboard.admin-user.yaml -f $SCRIPT_DIR/../kubernetes/deployments/dashboard/dashboard.admin-user-role.yaml"
   if ! run_command "$command"; then
     log_error "Failed to create user in k3s: admin-user"
     return 1
@@ -168,7 +164,6 @@ k8_generate_token_for_admin_user() {
   spacer
   log_info "Generating token for k8s admin-user..."
   command="kubectl -n kubernetes-dashboard create token admin-user"
-  if [ "$K3S" = true ]; then command="k3s $command"; fi
   token=$(eval "$command")
   if [ $? -eq 0 ]; then
     echo "$token" | xclip -selection clipboard
@@ -188,7 +183,7 @@ k8s_start_proxy() {
   sudo kill "$(sudo lsof -t -i:8001)" || true
 
   log_info "Starting proxy for k3s..."
-  k3s kubectl proxy &>/dev/null & disown
+  kubectl proxy &>/dev/null & disown
   log_success "Proxy for k3s is running."
 }
 
@@ -196,4 +191,38 @@ k8s_show_dashboard_access_instructions() {
   spacer
   echo -e "To access the Kubernetes dashboard, go to the URL below in your browser and enter the token when prompted.\n\n${BLUE}\nhttp://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/${NC}"
 
+}
+
+set_traefik_endpoint() {
+  hostname=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  # if both the hostname and ip are empty, throw an error
+  if [ -z "$hostname" ] && [ -z "$ip" ]; then return 1; fi
+  # if the hostname is empty, use the IP
+  if [ -z "$hostname" ]; then hostname=$ip; fi
+  export TRAEFIK_ENDPOINT=$hostname
+  return 0
+}
+
+traefik_endpoint_responding() {
+  set_traefik_endpoint
+  if curl -s -o /dev/null --fail "http://$TRAEFIK_ENDPOINT/dashboard/"; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+display_app_urls() {
+  echo -e "Displaying app URLs..."
+  set_traefik_endpoint
+
+  # show the traefik dashboard url
+  echo -e "Traefik Dashboard URL:\n${BLUE}http://$TRAEFIK_ENDPOINT/dashboard/${NC}\n"
+  # loop through each app in the demo-apps namespace and print the url
+  echo -e "App URLs:"
+  for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
+    path=$(kubectl get ingress "$app" -n demo-apps -o jsonpath='{.spec.rules[0].http.paths[0].path}')
+    echo -e "${BLUE}http://$TRAEFIK_ENDPOINT$path${NC}"
+  done
 }
