@@ -73,6 +73,16 @@ log_error() {
 # Helper Functions
 # =================================================================================================
 
+# Function to use in trap to handle errors and gracefully exit the script
+trap_cleanup() {
+  spacer
+  if [ -n "$SCRIPT_DIR" ]; then
+    cd "$SCRIPT_DIR/../" || true
+  fi
+  log_error "An error occurred while running the script."
+  graceful_exit
+}
+
 # Function for running a command and reporting success or failure
 # Also shows the command that is being run to aid in debugging
 run_command() {
