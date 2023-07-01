@@ -11,7 +11,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
 
-trap trap_cleanup ERR
+trap trap_cleanup ERR SIGINT SIGTERM
 
 spacer
 # Initialize Terraform
@@ -47,7 +47,7 @@ run_command "terraform apply tfplan"
 log_info "Writing Terraform state to file..."
 run_command "terraform show -json tfplan > tf_output.json"
 
-log_success "Terraform apply complete!"
+log_success "Terraform has finished setting up the EKS cluster."
 
 # update kubeconfig
 log_info "Updating kubeconfig..."
