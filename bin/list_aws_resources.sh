@@ -5,6 +5,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
+trap trap_cleanup ERR SIGINT SIGTERM
 
 # This script lists all resources associatd with the account.
 # You can keep it running in the background for a constant view of resources

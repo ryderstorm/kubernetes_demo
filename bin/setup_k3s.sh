@@ -11,6 +11,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
+trap trap_cleanup ERR SIGINT SIGTERM
 
 # =================================================================================================
 # Helper Functions
@@ -25,10 +26,11 @@ install_k3s() {
   # from: https://rancher.com/docs/k3s/latest/en/installation/install-options/
   # the --write-kubeconfig-mode 644 flag allows k3s to be run as a non-root user
   run_command "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode 644 --disable=traefik' sh -"
+  log_success "Successfully installed k3s."
+  log_info "Configuring kubectl to work with new k3s cluster..."
   run_command "cp /etc/rancher/k3s/k3s.yaml $SCRIPT_DIR/../tmp/k3s.yaml"
   run_command "export KUBECONFIG=$SCRIPT_DIR/../tmp/k3s.yaml"
   run_command "kubectl config rename-context default k3s-local"
-  log_success "Successfully installed k3s."
 }
 
 # =================================================================================================
@@ -62,6 +64,11 @@ if ! k8s_running; then
   graceful_exit 1
 fi
 
+if ! k8s_wait_for_pod "kube-system" "k8s-app=metrics-server"; then
+  log_error "Timed out waiting for k3s pods to be ready. Please try running this script again."
+  graceful_exit 1
+fi
+
 if ! k8s_dashboard_installed && ! k8s_install_dashboard; then
   log_error "Failed to install dashboard."
   graceful_exit 1
@@ -72,11 +79,11 @@ if ! k8s_admin_user_exists && ! k8s_create_admin_user; then
   graceful_exit 1
 fi
 
-k8_generate_token_for_admin_user
+k8s_generate_token_for_admin_user
 log_success "Dashboard installed and admin user created."
 k8s_start_proxy
 k8s_show_dashboard_access_instructions
 spacer
-echo -e "\nTo set your kubectl context to use k3s you must run:\n${BLUE}export KUBECONFIG=$SCRIPT_DIR/../tmp/k3s.yaml${NC}\n"
+echo -e "\nTo use kubectl with k3s you must run:\n${BLUE}export KUBECONFIG=tmp/k3s.yaml${NC}\n"
 echo -e "To test that it is working, run:\n${BLUE}kubectl get nodes${NC}\n"
-
+graceful_exit

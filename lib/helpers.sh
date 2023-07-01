@@ -79,7 +79,7 @@ trap_cleanup() {
   if [ -n "$SCRIPT_DIR" ]; then
     cd "$SCRIPT_DIR/../" || true
   fi
-  log_error "An error occurred while running the script."
+  log_error "Exiting because the script encountered an error or was interrupted."
   graceful_exit
 }
 
@@ -137,12 +137,12 @@ graceful_exit() {
 # =================================================================================================
 
 k8s_running() {
-  kubectl get nodes && return 0 || return 1
+  kubectl get nodes &>/dev/null && return 0 || return 1
 }
 
 # Function for checking if the k8s dashboard is installed
 k8s_dashboard_installed() {
-  kubectl get ns kubernetes-dashboard && return 0 || return 1
+  kubectl get ns kubernetes-dashboard  &>/dev/null && return 0 || return 1
 }
 
 k8s_admin_user_exists() {
@@ -157,6 +157,10 @@ k8s_install_dashboard() {
   version_kube_dashboard=$(curl -w '%{url_effective}' -I -L -s -S ${github_url}/latest -o /dev/null | sed -e 's|.*/||')
   command="kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/${version_kube_dashboard}/aio/deploy/recommended.yaml"
   run_command "$command"
+  if ! k8s_wait_for_pod "kubernetes-dashboard" "k8s-app=kubernetes-dashboard"; then
+    log_error "Failed to install the Kubernetes dashboard"
+    return 1
+  fi
   log_success "Successfully installed the Kubernetes dashboard"
 }
 
@@ -170,7 +174,7 @@ k8s_create_admin_user() {
   fi
 }
 
-k8_generate_token_for_admin_user() {
+k8s_generate_token_for_admin_user() {
   spacer
   log_info "Generating token for k8s admin-user..."
   command="kubectl -n kubernetes-dashboard create token admin-user"
@@ -199,8 +203,42 @@ k8s_start_proxy() {
 
 k8s_show_dashboard_access_instructions() {
   spacer
-  echo -e "To access the Kubernetes dashboard, go to the URL below in your browser and enter the token when prompted.\n\n${BLUE}\nhttp://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/${NC}"
+  echo -e "To access the Kubernetes dashboard, go to the URL below in your browser and enter the token when prompted.\n\n${BLUE}\http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=_all${NC}"
 
+}
+
+k8s_wait_for_pod() {
+  local namespace="$1"
+  local labels="$2"
+
+  if [ -z "$namespace" ] || [ -z "$labels" ]; then
+    log_error "You must provide a namespace and labels to the k8s_wait_for_pod function."
+    return 1
+  fi
+  command="kubectl get pods -n '$namespace' -l '$labels' -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null"
+  log_info "Waiting for pod with labels [$labels] to be ready with command:\n${BLUE}$command${NC}"
+  printf '...'
+  TIMEOUT=60
+  START_TIME=$(date +%s)
+  while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+    if [[ $ELAPSED_TIME -gt $TIMEOUT ]]; then
+      log_error "Timed out after waiting $TIMEOUT seconds for pod with labels [$labels] to be ready."
+      return 1
+    fi
+    status=$(eval "$command")
+    if [ "$status" == "true" ]; then
+      echo -e "\n"
+      log_success "Pod with labels [$labels] is ready!"
+      return 0
+    fi
+    printf "."
+    sleep 1
+  done
+  echo -e "\n"
+  log_error "Timed out after waiting $TIMEOUT seconds for pod with labels [$labels] to be ready."
+  return 1
 }
 
 set_traefik_endpoint() {
@@ -221,6 +259,27 @@ traefik_endpoint_responding() {
   else
     return 1
   fi
+}
+
+wait_for_traefik_endpoint() {
+  printf "Waiting for Traefik load balancer to be ready..."
+  TIMEOUT=60
+  START_TIME=$(date +%s)
+  while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+    if [ $ELAPSED_TIME -gt $TIMEOUT ]; then
+      spacer
+      log_error "Timed out waiting for Traefik load balancer to be ready."
+      graceful_exit 1
+    fi
+    if traefik_endpoint_responding; then
+      echo ""
+      return 0
+    fi
+    printf "."
+    sleep 1
+  done
 }
 
 display_app_urls() {

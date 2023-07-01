@@ -23,6 +23,3 @@ fi
 if [ -z "$POLICY_NAME" ]; then
   POLICY_NAME="xyz-demo-policy"
 fi
-
-# Set a placeholder for the Traefik endpoint
-TRAEFIK_ENDPOINT=""
