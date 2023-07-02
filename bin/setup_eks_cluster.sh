@@ -49,10 +49,31 @@ run_command "terraform show -json tfplan > tf_output.json"
 
 log_success "Terraform has finished setting up the EKS cluster."
 
-# update kubeconfig
-log_info "Updating kubeconfig..."
-run_command "aws eks --region $(terraform output -raw region) update-kubeconfig     --name $(terraform output -raw cluster_name)"
+# update kubeconfig if the current context is not the new cluster
+if [ "$(kubectl config current-context)" != "$(terraform output -raw cluster_name)" ]; then
+  spacer
+  log_info "Configuring kubectl to work with new EKS cluster..."
+  run_command "kubectl config delete-context $(terraform output -raw cluster_name) &> /dev/null || true"
+  run_command "aws eks --region $(terraform output -raw region) update-kubeconfig     --name $(terraform output -raw cluster_name)"
+  run_command "kubectl config rename-context $(kubectl config current-context) $(terraform output -raw cluster_name)"
+fi
 
+spacer
+
+set_up_k8s_cluster
+
+# Install Traefik and the demo apps
+k8s_install_traefik
+k8s_install_demo_apps
+
+spacer
+
+log_success "Cluster apps are installed and ready to use."
+log_info "You can access apps in the cluster at the following URLs:"
+display_app_urls
+graceful_exit
+
+spacer
 echo -e "
 To destroy the infrastructure, run:
 ${BLUE}terraform destroy${NC}
@@ -60,28 +81,3 @@ ${BLUE}terraform destroy${NC}
 To view resources created by this script on AWS, go to the link below and click ${YELLOW}Search resources${NC}:
 ${BLUE}https://${AWS_REGION}.console.aws.amazon.com/resource-groups/tag-editor/find-resources?region=${AWS_REGION}#query=regions:!%28${AWS_REGION}%29,resourceTypes:!%28%27AWS::AllSupported%27%29,tagFilters:!%28%28key:Project,values:!%28${TF_PROJECT}%29%29%29,type:TAG_EDITOR_1_0${NC}
 "
-
-
-
-# =================================================================================================
-# Need to redo
-# =================================================================================================
-# if ! k8s_running; then
-#   log_error "The EKS cluster does not appear to be running. Please ensure the cluster is fully set up and running and then run this script again."
-#   graceful_exit 1
-# fi
-
-# if ! k8s_dashboard_installed && ! k8s_install_dashboard; then
-#   log_error "Failed to install dashboard."
-#   graceful_exit 1
-# fi
-
-# if ! k8s_admin_user_exists && ! k8s_create_admin_user; then
-#   log_error "Failed to create admin user."
-#   graceful_exit 1
-# fi
-
-# k8_generate_token_for_admin_user
-# log_success "Dashboard installed and admin user created."
-# k8s_start_proxy
-# k8s_show_dashboard_access_instructions

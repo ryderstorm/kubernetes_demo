@@ -241,6 +241,64 @@ k8s_wait_for_pod() {
   return 1
 }
 
+set_up_k8s_cluster() {
+  if ! k8s_running; then
+    log_error "k3s is not running. Please ensure k3s is installed and running and then run this script again."
+    graceful_exit 1
+  fi
+
+  if ! k8s_dashboard_installed && ! k8s_install_dashboard; then
+    log_error "Failed to install dashboard."
+    graceful_exit 1
+  fi
+
+  if ! k8s_admin_user_exists && ! k8s_create_admin_user; then
+    log_error "Failed to create admin user."
+    graceful_exit 1
+  fi
+
+  k8s_generate_token_for_admin_user
+  log_success "Dashboard installed and admin user created."
+  k8s_start_proxy
+  k8s_show_dashboard_access_instructions
+}
+
+k8s_install_traefik() {
+  log_info "Installing Traefik..."
+  run_command "helm repo add traefik https://helm.traefik.io/traefik"
+  run_command "helm repo update"
+  values_file="$SCRIPT_DIR/../kubernetes/helm/traefik-values.yaml"
+  command="helm upgrade --install --create-namespace --values=$values_file -n traefik traefik traefik/traefik"
+  run_command "$command"
+  dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
+  command="kubectl apply -f $dashboard_file"
+  run_command "$command"
+  if ! k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik" && ! wait_for_traefik_endpoint; then
+    log_error "Failed to install Traefik."
+    graceful_exit 1
+  fi
+  log_success "Successfully installed Traefik. Please try running this script again."
+}
+
+k8s_install_demo_apps() {
+  log_info "Installing demo apps..."
+  namespace_file="$SCRIPT_DIR/../kubernetes/deployments/misc/namespaces.yaml"
+  command="kubectl apply -f $namespace_file"
+  run_command "$command"
+  demo_apps_folder="$SCRIPT_DIR/../kubernetes/deployments/demo_apps"
+  command="kubectl apply -f $demo_apps_folder"
+  run_command "$command"
+  if ! k8s_wait_for_pod "demo-apps" "app=nginx-hello"; then
+    log_error "Failed to install demo apps. Please try running this script again."
+    graceful_exit 1
+  fi
+  log_success "Successfully installed demo apps."
+
+}
+# =================================================================================================
+# Traefik Helper Functions
+# =================================================================================================
+
 set_traefik_endpoint() {
   hostname=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
   ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')

@@ -59,31 +59,18 @@ else
   install_k3s
 fi
 
-if ! k8s_running; then
-  log_error "k3s is not running. Please ensure k3s is installed and running and then run this script again."
-  graceful_exit 1
-fi
-
-if ! k8s_wait_for_pod "kube-system" "k8s-app=metrics-server"; then
-  log_error "Timed out waiting for k3s pods to be ready. Please try running this script again."
-  graceful_exit 1
-fi
-
-if ! k8s_dashboard_installed && ! k8s_install_dashboard; then
-  log_error "Failed to install dashboard."
-  graceful_exit 1
-fi
-
-if ! k8s_admin_user_exists && ! k8s_create_admin_user; then
-  log_error "Failed to create admin user."
-  graceful_exit 1
-fi
-
-k8s_generate_token_for_admin_user
-log_success "Dashboard installed and admin user created."
-k8s_start_proxy
-k8s_show_dashboard_access_instructions
+set_up_k8s_cluster
 spacer
 echo -e "\nTo use kubectl with k3s you must run:\n${BLUE}export KUBECONFIG=tmp/k3s.yaml${NC}\n"
 echo -e "To test that it is working, run:\n${BLUE}kubectl get nodes${NC}\n"
+
+# Install Traefik and the demo apps
+k8s_install_traefik
+k8s_install_demo_apps
+
+spacer
+
+log_success "Cluster apps are installed and ready to use."
+log_info "You can access apps in the cluster at the following URLs:"
+display_app_urls
 graceful_exit
