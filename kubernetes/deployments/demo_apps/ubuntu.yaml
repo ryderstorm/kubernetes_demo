@@ -2,23 +2,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: whoami
+  name: ubuntu-testbed
   namespace: demo-apps
   labels:
-    app: whoami
+    app: ubuntu-testbed
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: whoami
+      app: ubuntu-testbed
   template:
     metadata:
       labels:
-        app: whoami
+        app: ubuntu-testbed
     spec:
       containers:
-        - name: whoami
-          image: traefik/whoami
+        - name: ubuntu-testbed
+          image: ubuntu:latest
+          command:
+            [
+              "bash",
+              "-c",
+              "apt-get update && apt-get install -y nginx ufw curl && ufw allow 80/tcp && nginx -g 'daemon off;'",
+            ]
+          ports:
+            - containerPort: 80
           livenessProbe:
             httpGet:
               path: /
@@ -36,36 +44,36 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: whoami
+  name: ubuntu-testbed
   namespace: demo-apps
   labels:
-    app: whoami
+    app: ubuntu-testbed
 spec:
   ports:
     - name: http
       port: 80
       targetPort: 80
   selector:
-    app: whoami
+    app: ubuntu-testbed
 
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: whoami
+  name: ubuntu-testbed
   namespace: demo-apps
   labels:
-    app: whoami
+    app: ubuntu-testbed
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
     - http:
         paths:
-          - path: /whoami
+          - path: /ubuntu-testbed
             pathType: Prefix
             backend:
               service:
-                name: whoami
+                name: ubuntu-testbed
                 port:
                   number: 80

@@ -19,6 +19,18 @@ spec:
       containers:
         - name: nginx-hello
           image: nginxdemos/hello
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
 
 ---
 apiVersion: v1
