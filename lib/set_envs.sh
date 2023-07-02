@@ -23,3 +23,8 @@ fi
 if [ -z "$POLICY_NAME" ]; then
   POLICY_NAME="xyz-demo-policy"
 fi
+
+# Set the local host name for the k3s cluster
+if [ -z "$K3S_HOST_NAME" ]; then
+  K3S_HOST_NAME="k3s.local"
+fi

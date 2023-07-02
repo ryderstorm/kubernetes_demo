@@ -41,7 +41,7 @@ spacer
 echo -e "${WHITE}This script will install k3s onto your local machine.${NC}"
 echo -e "${WHITE}You will be prompted for your sudo password during the installation process.${NC}"
 spacer
-if ! prompt_yes_no "Do you wish to continue?"; then
+if [ "$1" != "confirm" ] && ! prompt_yes_no "Do you wish to continue?"; then
   graceful_exit 0
 fi
 
@@ -52,7 +52,7 @@ if k3s_installed; then
   echo -e "${BLUE}/usr/local/bin/k3s-uninstall.sh${NC}"
   echo -e "\n${WHITE}And run this script again.${NC}"
   spacer
-  if ! prompt_yes_no "Do you wish to continue and install the dashboard?"; then
+  if [ "$1" != "confirm" ] && ! prompt_yes_no "Do you wish to continue and reapply the cluster configuration?"; then
     graceful_exit 0
   fi
 else

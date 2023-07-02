@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      containers:
+        - name: {{ .Values.name }}
+          image: {{ .Values.image }}
+          {{- if .Values.altCommand.enabled }}
+          command: {{ .Values.altCommand.command }}
+          {{- end }}
+          ports:
+            - name: {{ .Values.http.name }}
+              containerPort: {{ .Values.http.port }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.http.path }}
+              port: {{ .Values.http.port }}
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.http.path }}
+              port: {{ .Values.http.port }}
+            initialDelaySeconds: 2
+            periodSeconds: 5

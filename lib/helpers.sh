@@ -282,12 +282,15 @@ k8s_install_traefik() {
 
 k8s_install_demo_apps() {
   log_info "Installing demo apps..."
-  namespace_file="$SCRIPT_DIR/../kubernetes/deployments/misc/namespaces.yaml"
-  command="kubectl apply -f $namespace_file"
-  run_command "$command"
-  demo_apps_folder="$SCRIPT_DIR/../kubernetes/deployments/demo_apps"
-  command="kubectl apply -f $demo_apps_folder"
-  run_command "$command"
+  set_traefik_endpoint
+  demo_apps_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
+  for chart in "whoami" "nginx-hello"
+  do
+    values_file="$SCRIPT_DIR/../kubernetes/helm/${chart}-values.yaml"
+    command="helm upgrade --install --create-namespace --values=$values_file -n demo-apps $chart $demo_apps_folder"
+    run_command "$command"
+  done
+
   if ! k8s_wait_for_pod "demo-apps" "app=nginx-hello"; then
     log_error "Failed to install demo apps. Please try running this script again."
     graceful_exit 1
@@ -302,10 +305,12 @@ k8s_install_demo_apps() {
 set_traefik_endpoint() {
   hostname=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
   ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo "hostname: $hostname"
+  echo "ip: $ip"
   # if both the hostname and ip are empty, throw an error
   if [ -z "$hostname" ] && [ -z "$ip" ]; then return 1; fi
-  # if the hostname is empty, use the IP
-  if [ -z "$hostname" ]; then hostname=$ip; fi
+  # if the hostname is empty, then we're using ks3 on a local machine
+  if [ -z "$hostname" ]; then hostname=$K3S_HOST_NAME; fi
   export TRAEFIK_ENDPOINT=$hostname
   return 0
 }
