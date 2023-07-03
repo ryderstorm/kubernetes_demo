@@ -323,7 +323,7 @@ k8s_install_demo_apps() {
     run_command "$command"
   done
 
-  if ! k8s_wait_for_pod "demo-apps" "app=nginx-hello"; then
+  if ! k8s_wait_for_pod "demo-apps" "app=timestamp"; then
     log_error "Failed to install demo apps. Please try running this script again."
     graceful_exit 1
   fi
