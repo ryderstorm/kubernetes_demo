@@ -29,7 +29,7 @@ install_k3s() {
   log_success "Successfully installed k3s."
   log_info "Configuring kubectl to work with new k3s cluster..."
   run_command "cp /etc/rancher/k3s/k3s.yaml $SCRIPT_DIR/../tmp/k3s.yaml"
-  run_command "export KUBECONFIG=$SCRIPT_DIR/../tmp/k3s.yaml"
+  run_command "export KUBECONFIG=$ROOT_DIR/tmp/k3s.yaml"
   run_command "kubectl config rename-context default k3s-local"
 }
 
