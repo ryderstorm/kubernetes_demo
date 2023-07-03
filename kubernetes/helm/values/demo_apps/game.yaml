@@ -1,0 +1,9 @@
+name: game
+image: alexwhen/docker-2048
+replicaCount: 1
+ingress:
+  enabled: true
+health:
+  port: 80
+http:
+  containerPort: 80

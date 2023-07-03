@@ -298,7 +298,7 @@ k8s_install_traefik() {
   set_docker_hub_secret "traefik"
   run_command "helm repo add traefik https://helm.traefik.io/traefik"
   run_command "helm repo update"
-  values_file="$SCRIPT_DIR/../kubernetes/helm/traefik-values.yaml"
+  values_file="$SCRIPT_DIR/../kubernetes/helm/values/traefik/traefik-values.yaml"
   command="helm upgrade --install --create-namespace --values=$values_file -n traefik traefik traefik/traefik"
   run_command "$command"
   if ! k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik" && ! traefik_wait_for_endpoint; then
@@ -314,12 +314,12 @@ k8s_install_traefik() {
 k8s_install_demo_apps() {
   set_docker_hub_secret "demo-apps"
   traefik_set_endpoint
-  demo_apps_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
-  for chart in $DEMO_APPS;
-  do
-    log_info "Installing demo app: ${BLUE}$chart${NC}"
-    values_file="$SCRIPT_DIR/../kubernetes/helm/${chart}-values.yaml"
-    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$(traefik_endpoint_hostname) -n demo-apps $chart $demo_apps_folder"
+  chart_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
+  values_folder="$SCRIPT_DIR/../kubernetes/helm/values/demo_apps"
+  for values_file in "$values_folder"/*; do
+    app=$(basename "$values_file" | sed 's/-values.yaml//g')
+    log_info "Installing demo app: ${BLUE}$app${NC}"
+    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$(traefik_endpoint_hostname) -n demo-apps $app $chart_folder"
     run_command "$command"
   done
 
