@@ -135,6 +135,12 @@ graceful_exit() {
   exit "$exit_code"
 }
 
+# Function for silenty exiting the script
+silent_exit() {
+  exit_code=${1:-0}
+  exit "$exit_code"
+}
+
 terraform_dir() {
   echo "$ROOT_DIR/terraform"
 }

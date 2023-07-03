@@ -24,6 +24,11 @@ if [ -z "$POLICY_NAME" ]; then
   POLICY_NAME="xyz-demo-policy"
 fi
 
+# Set the name for the AWS ECR repository
+if [ -z "$ECR_REPO_NAME" ]; then
+  ECR_REPO_NAME="xyz-demo-repo"
+fi
+
 # Set the local host name for the k3s cluster
 if [ -z "$K3S_HOST_NAME" ]; then
   K3S_HOST_NAME="k3s.local"
