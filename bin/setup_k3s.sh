@@ -37,6 +37,8 @@ install_k3s() {
 # Main Script
 # =================================================================================================
 
+export RUNNING_K3S=true
+
 spacer
 echo -e "${WHITE}This script will install k3s onto your local machine.${NC}"
 echo -e "${WHITE}You will be prompted for your sudo password during the installation process.${NC}"
@@ -72,5 +74,5 @@ spacer
 
 log_success "Cluster apps are installed and ready to use."
 log_info "You can access apps in the cluster at the following URLs:"
-display_app_urls
+traefik_report_access_points
 graceful_exit
