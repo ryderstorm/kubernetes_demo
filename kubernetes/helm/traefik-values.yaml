@@ -1,4 +1,6 @@
 ---
+imagePullSecrets:
+  - name: docker-hub-creds
 ingressClass:
   enabled: true
   isDefaultClass: true

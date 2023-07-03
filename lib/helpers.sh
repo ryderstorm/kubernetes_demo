@@ -149,6 +149,20 @@ k8s_admin_user_exists() {
   kubectl get sa admin-user -n kubernetes-dashboard && return 0 || return 1
 }
 
+set_docker_hub_secret() {
+  namespace=$1
+  if kubectl get secret docker-hub-creds -n "$namespace" &>/dev/null; then
+    log_info "Clearing existing docker hub secret for namespace: ${BLUE}$namespace${NC}"
+    run_command "kubectl delete secret docker-hub-creds -n '$namespace'"
+  fi
+  log_info "Setting docker hub secret for namespace: ${BLUE}$namespace${NC}"
+  if ! kubectl get namespace "$namespace" &>/dev/null; then
+    run_command "kubectl create namespace $namespace"
+  fi
+  run_command "kubectl create secret generic docker-hub-creds --from-file=.dockerconfigjson='$HOME/.docker/config.json' --type=kubernetes.io/dockerconfigjson -n '$namespace'"
+  log_success "Docker hub secret set for namespace: ${BLUE}$namespace${NC}"
+}
+
 # Kubectl command for installing the latest version of the Kubernetes dashboard
 k8s_install_dashboard() {
   log_info "Installing KubernetesDashboard in..."
@@ -264,6 +278,7 @@ set_up_k8s_cluster() {
 
 k8s_install_traefik() {
   log_info "Installing Traefik..."
+  set_docker_hub_secret "traefik"
   run_command "helm repo add traefik https://helm.traefik.io/traefik"
   run_command "helm repo update"
   values_file="$SCRIPT_DIR/../kubernetes/helm/traefik-values.yaml"
@@ -281,6 +296,7 @@ k8s_install_traefik() {
 
 k8s_install_demo_apps() {
   log_info "Installing demo apps..."
+  set_docker_hub_secret "demo-apps"
   traefik_set_endpoint
   demo_apps_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
   for chart in $DEMO_APPS;
