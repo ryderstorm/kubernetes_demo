@@ -396,7 +396,7 @@ k8s_install_traefik() {
     graceful_exit 1
   fi
   dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
-  command="cat '$dashboard_file' | sed 's/KUBERNETES_HOSTNAME/Host(\`traefik.$(traefik_endpoint_hostname)\`)/g' | kubectl apply -f -"
+  command="kubectl apply -f $dashboard_file"
   run_command "$command"
   log_success "Successfully installed Traefik. Please try running this script again."
 }
@@ -490,18 +490,15 @@ traefik_report_access_points() {
   ip=$(traefik_endpoint_ip)
   log_info "Reporting access points for Traefik and demo apps:"
   log_info "Traefik Dashboard URL:"
-  log_info "${BLUE}http://traefik.$TRAEFIK_ENDPOINT/${NC}\n"
+  log_info "${BLUE}http://$TRAEFIK_ENDPOINT/dashboard/${NC}\n"
   log_info "App URLs:"
   for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
-    log_info "${BLUE}http://$app.$TRAEFIK_ENDPOINT${NC}"
+    path=$(kubectl get ingress "$app" -n demo-apps -o jsonpath='{.spec.rules[0].http.paths[0].path}')
+    log_info "${BLUE}http://$TRAEFIK_ENDPOINT$path${NC}"
   done
 
   if [ ! "$RUNNING_K3S" = true ]; then return 0; fi
   spacer
   log_info "To access the Traefik dashboard and demo apps you'll need to add the following entries to your /etc/hosts file:"
   echo -e "${BLUE}$ip $TRAEFIK_ENDPOINT${NC}"
-  echo -e "${BLUE}$ip traefik.$TRAEFIK_ENDPOINT${NC}"
-  for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
-    echo -e "${BLUE}$ip $app.$TRAEFIK_ENDPOINT${NC}"
-  done
 }

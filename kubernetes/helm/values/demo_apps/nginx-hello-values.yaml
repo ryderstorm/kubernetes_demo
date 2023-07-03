@@ -3,3 +3,4 @@ image: nginxdemos/hello
 replicaCount: 1
 ingress:
   enabled: true
+  path: /nginx-hello

@@ -3,3 +3,4 @@ image: traefik/whoami
 replicaCount: 1
 ingress:
   enabled: true
+  path: /whoami

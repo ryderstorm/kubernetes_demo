@@ -3,6 +3,7 @@ image: ryderstorm/xyz-demo-timestamp-server:latest
 replicaCount: 1
 ingress:
   enabled: true
+  path: /timestamp
 health:
   port: 4567
   path: /health

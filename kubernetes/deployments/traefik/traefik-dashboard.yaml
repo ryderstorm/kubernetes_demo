@@ -37,8 +37,3 @@ spec:
       # middlewares:
       #   - name: basic-auth
       #     namespace: traefik
-    - match: KUBERNETES_HOSTNAME
-      kind: Rule
-      services:
-        - name: api@internal
-          kind: TraefikService

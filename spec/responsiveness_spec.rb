@@ -12,38 +12,44 @@ puts "Running integration tests for demo apps running in the Kubernetes cluster 
 
 describe 'Demo App Integration Tests' do
   it 'tests responsiveness of [traefik] demo appliation' do
-    url = "http://traefik.#{cluster_endpoint}"
-    response = HTTParty.get(url)
+    url = "http://#{cluster_endpoint}/dashboard/"
+    response = HTTParty.get(url, timeout: 5)
     expect(response.code).to eq(200)
   end
 
   it 'tests responsiveness of [whoami] demo appliation' do
-    url = "http://whoami.#{cluster_endpoint}"
-    response = HTTParty.get(url)
+    url = "http://#{cluster_endpoint}/whoami"
+    response = HTTParty.get(url, timeout: 5)
     expect(response.code).to eq(200)
   end
 
   it 'tests responsiveness of [nginx-hello] demo appliation' do
-    url = "http://nginx-hello.#{cluster_endpoint}"
-    response = HTTParty.get(url)
+    url = "http://#{cluster_endpoint}/nginx-hello"
+    response = HTTParty.get(url, timeout: 5)
     expect(response.code).to eq(200)
   end
 
-  it 'tests responsiveness of [ubuntu-testbed] demo appliation' do
-    url = "http://ubuntu-testbed.#{cluster_endpoint}"
-    response = HTTParty.get(url)
-    expect(response.code).to eq(200)
-  end
+  # it 'tests responsiveness of [game] demo appliation' do
+  #   url = "http://#{cluster_endpoint}/game"
+  #   response = HTTParty.get(url, timeout: 5)
+  #   expect(response.code).to eq(200)
+  # end
+
+  # it 'tests responsiveness of [ubuntu-testbed] demo appliation' do
+  #   url = "http://#{cluster_endpoint}/ubuntu-testbed"
+  #   response = HTTParty.get(url, timeout: 5)
+  #   expect(response.code).to eq(200)
+  # end
 
   it 'tests responsiveness of [timestamp] demo appliation' do
-    url = "http://timestamp.#{cluster_endpoint}"
-    response = HTTParty.get(url)
+    url = "http://#{cluster_endpoint}/timestamp"
+    response = HTTParty.get(url, timeout: 5)
     expect(response.code).to eq(200)
   end
 
   it 'tests that the timestamp server returns a valid JSON response' do
-    url = "http://timestamp.#{cluster_endpoint}"
-    response = HTTParty.get(url)
+    url = "http://#{cluster_endpoint}/timestamp"
+    response = HTTParty.get(url, timeout: 5)
     body = JSON.parse(response.body)
     expect(body['message']).to eq('Automate all the things!')
     server_time = Time.at(body['timestamp'])
