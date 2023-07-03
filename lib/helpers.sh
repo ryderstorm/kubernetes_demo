@@ -204,7 +204,6 @@ k8s_start_proxy() {
 k8s_show_dashboard_access_instructions() {
   spacer
   echo -e "To access the Kubernetes dashboard, go to the URL below in your browser and enter the token when prompted.\n\n${BLUE}\http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/workloads?namespace=_all${NC}"
-
 }
 
 k8s_wait_for_pod() {
@@ -273,7 +272,7 @@ k8s_install_traefik() {
   dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
   command="kubectl apply -f $dashboard_file"
   run_command "$command"
-  if ! k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik" && ! wait_for_traefik_endpoint; then
+  if ! k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik" && ! traefik_wait_for_endpoint; then
     log_error "Failed to install Traefik."
     graceful_exit 1
   fi
@@ -282,7 +281,7 @@ k8s_install_traefik() {
 
 k8s_install_demo_apps() {
   log_info "Installing demo apps..."
-  set_traefik_endpoint
+  traefik_set_endpoint
   demo_apps_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
   for chart in $DEMO_APPS;
   do
@@ -303,9 +302,17 @@ k8s_install_demo_apps() {
 # Traefik Helper Functions
 # =================================================================================================
 
-set_traefik_endpoint() {
-  hostname=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-  ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+traefik_endpoint_hostname() {
+  kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+}
+
+traefik_endpoint_ip() {
+  kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+}
+
+traefik_set_endpoint() {
+  hostname=$(traefik_endpoint_hostname)
+  ip=$(traefik_endpoint_ip)
   # if both the hostname and ip are empty, throw an error
   if [ -z "$hostname" ] && [ -z "$ip" ]; then return 1; fi
   # if the hostname is empty, then we're using ks3 on a local machine
@@ -314,16 +321,15 @@ set_traefik_endpoint() {
   return 0
 }
 
-traefik_endpoint_responding() {
-  set_traefik_endpoint
-  if curl -s -o /dev/null --fail "http://$TRAEFIK_ENDPOINT/dashboard/"; then
+traefik_dashboard_responding() {
+  if curl -s -o /dev/null --fail "http://$(traefik_endpoint_ip)/dashboard/"; then
     return 0
   else
     return 1
   fi
 }
 
-wait_for_traefik_endpoint() {
+traefik_wait_for_endpoint() {
   printf "Waiting for Traefik load balancer to be ready..."
   TIMEOUT=60
   START_TIME=$(date +%s)
@@ -335,7 +341,7 @@ wait_for_traefik_endpoint() {
       log_error "Timed out waiting for Traefik load balancer to be ready."
       graceful_exit 1
     fi
-    if traefik_endpoint_responding; then
+    if traefik_dashboard_responding; then
       echo ""
       return 0
     fi
@@ -344,15 +350,23 @@ wait_for_traefik_endpoint() {
   done
 }
 
-display_app_urls() {
-  echo -e "Displaying app URLs..."
-  set_traefik_endpoint
-
-  # show the traefik dashboard url
-  echo -e "Traefik Dashboard URL:\n${BLUE}http://traefik.$TRAEFIK_ENDPOINT/${NC}\n"
-  # loop through each app in the demo-apps namespace and print the url
-  echo -e "App URLs:"
+traefik_report_access_points() {
+  traefik_set_endpoint
+  ip=$(traefik_endpoint_ip)
+  log_info "Reporting access points for Traefik and demo apps:"
+  log_info "Traefik Dashboard URL:"
+  log_info "${BLUE}http://traefik.$TRAEFIK_ENDPOINT/${NC}\n"
+  log_info "App URLs:"
   for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
-    echo -e "${BLUE}http://$app.$TRAEFIK_ENDPOINT${NC}"
+    log_info "${BLUE}http://$app.$TRAEFIK_ENDPOINT${NC}"
+  done
+
+  if [ ! "$RUNNING_K3S" = true ]; then return 0; fi
+  spacer
+  log_info "To access the Traefik dashboard and demo apps you'll need to add the following entries to your /etc/hosts file:"
+  echo -e "${BLUE}$ip $TRAEFIK_ENDPOINT${NC}"
+  echo -e "${BLUE}$ip traefik.$TRAEFIK_ENDPOINT${NC}"
+  for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
+    echo -e "${BLUE}$ip $app.$TRAEFIK_ENDPOINT${NC}"
   done
 }
