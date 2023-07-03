@@ -30,13 +30,9 @@ run_command "terraform plan -out=tfplan"
 # Prompt user to continue with a yes/no unless the first parameter is "confirm"
 if [ "$1" != "confirm" ]; then
   spacer
-  echo -e "${YELLOW}Do you want to continue and apply the Terraform plan?${NC}"
-  select yn in "Yes" "No"; do
-    case $yn in
-      Yes ) break;;
-      No ) graceful_exit 0;;
-    esac
-  done
+  if ! prompt_yes_no "Do you want to continue with the Terraform apply?"; then
+    graceful_exit 0
+  fi
 fi
 
 # Run Terraform apply

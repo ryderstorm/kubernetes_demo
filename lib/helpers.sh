@@ -344,7 +344,7 @@ k8s_install_demo_apps() {
 k8s_set_up_dashboard_proxy() {
   spacer
   # prompt the user if they want to enable the dashboard proxy
-  if ! prompt_user "Would you like to enable the dashboard proxy?"; then
+  if ! prompt_yes_no "Would you like to enable the dashboard proxy?"; then
     return 0
   fi
   k8s_generate_token_for_admin_user
