@@ -3,7 +3,3 @@ image: nginxdemos/hello
 replicaCount: 1
 ingress:
   enabled: true
-http:
-  port: 80
-  name: http
-  path: /nginx-hello

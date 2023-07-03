@@ -7,9 +7,10 @@ metadata:
     app: {{ .Values.name }}
 spec:
   rules:
-    - http:
+    - host: {{ printf "%s.%s" .Values.name .Values.ingress.host }}
+      http:
         paths:
-          - path: {{ .Values.http.path }}
+          - path: {{ .Values.ingress.path }}
             pathType: Prefix
             backend:
               service:

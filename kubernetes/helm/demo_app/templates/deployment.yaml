@@ -17,21 +17,24 @@ spec:
       containers:
         - name: {{ .Values.name }}
           image: {{ .Values.image }}
+          imagePullPolicy: Always
           {{- if .Values.altCommand.enabled }}
           command: {{ .Values.altCommand.command }}
           {{- end }}
           ports:
             - name: {{ .Values.http.name }}
-              containerPort: {{ .Values.http.port }}
+              containerPort: {{ .Values.http.containerPort }}
+          {{- if .Values.health.enabled }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.http.path }}
-              port: {{ .Values.http.port }}
+              path: {{ .Values.health.path }}
+              port: {{ .Values.health.port }}
             initialDelaySeconds: 2
             periodSeconds: 5
           readinessProbe:
             httpGet:
-              path: {{ .Values.http.path }}
-              port: {{ .Values.http.port }}
+              path: {{ .Values.health.path }}
+              port: {{ .Values.health.port }}
             initialDelaySeconds: 2
             periodSeconds: 5
+          {{- end }}
