@@ -12,6 +12,8 @@ Before you can deploy the demo apps to Kubernetes, you'll need to build the Dock
 ./bin/build_docker_images.sh
 ```
 
+:warning: :warning: :warning: **_Note:_** This functionality is currently WIP. The script will build the Docker images, but it will not push them to a Docker registry. A future enhancement will be to add a Docker registry to the Kubernetes cluster and push the images to the registry.
+
 ## Deploying a Kubernetes cluster using Terraform and AWS EKS
 
 WIP

@@ -18,6 +18,6 @@ resource "helm_release" "traefik" {
   create_namespace = true
 
   values = [
-    file("${path.root}/../kubernetes/helm/traefik-values.yaml")
+    file("${path.root}/../kubernetes/helm/values/traefik/traefik-values.yaml")
   ]
 }
