@@ -301,18 +301,17 @@ k8s_install_traefik() {
   values_file="$SCRIPT_DIR/../kubernetes/helm/traefik-values.yaml"
   command="helm upgrade --install --create-namespace --values=$values_file -n traefik traefik traefik/traefik"
   run_command "$command"
-  dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
-  command="kubectl apply -f $dashboard_file"
-  run_command "$command"
   if ! k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik" && ! traefik_wait_for_endpoint; then
     log_error "Failed to install Traefik."
     graceful_exit 1
   fi
+  dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
+  command="cat '$dashboard_file' | sed 's/KUBERNETES_HOSTNAME/Host(\`traefik.$(traefik_endpoint_hostname)\`)/g' | kubectl apply -f -"
+  run_command "$command"
   log_success "Successfully installed Traefik. Please try running this script again."
 }
 
 k8s_install_demo_apps() {
-  log_info "Installing demo apps..."
   set_docker_hub_secret "demo-apps"
   traefik_set_endpoint
   demo_apps_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
@@ -320,7 +319,7 @@ k8s_install_demo_apps() {
   do
     log_info "Installing demo app: ${BLUE}$chart${NC}"
     values_file="$SCRIPT_DIR/../kubernetes/helm/${chart}-values.yaml"
-    command="helm upgrade --install --create-namespace --values=$values_file -n demo-apps $chart $demo_apps_folder"
+    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$(traefik_endpoint_hostname) -n demo-apps $chart $demo_apps_folder"
     run_command "$command"
   done
 
@@ -336,6 +335,10 @@ k8s_install_demo_apps() {
 # =================================================================================================
 
 traefik_endpoint_hostname() {
+  if [ "$RUNNING_K3S" == "true" ]; then
+    echo "$K3S_HOST_NAME"
+    return 0
+  fi
   kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 }
 
@@ -348,8 +351,6 @@ traefik_set_endpoint() {
   ip=$(traefik_endpoint_ip)
   # if both the hostname and ip are empty, throw an error
   if [ -z "$hostname" ] && [ -z "$ip" ]; then return 1; fi
-  # if the hostname is empty, then we're using ks3 on a local machine
-  if [ -z "$hostname" ]; then hostname=$K3S_HOST_NAME; fi
   export TRAEFIK_ENDPOINT=$hostname
   return 0
 }

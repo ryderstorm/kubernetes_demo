@@ -37,7 +37,7 @@ spec:
       # middlewares:
       #   - name: basic-auth
       #     namespace: traefik
-    - match: Host(`traefik.k3s.local`)
+    - match: KUBERNETES_HOSTNAME
       kind: Rule
       services:
         - name: api@internal
