@@ -4,6 +4,14 @@
 
 WIP
 
+## Building Docker Images for the Demo Apps
+
+Before you can deploy the demo apps to Kubernetes, you'll need to build the Docker images for the demo apps. To do this, run the build script:
+
+```bash
+./bin/build_docker_images.sh
+```
+
 ## Deploying a Kubernetes cluster using Terraform and AWS EKS
 
 WIP
@@ -12,39 +20,43 @@ WIP
 
 k3s is a lightweight Kubernetes distribution. It is a single binary that provides a fully compliant Kubernetes API server and Kubernetes controller components. This project uses k3s to provide a local development environment for Kubernetes.
 
-### Install and set up local k3s cluster
+### Install k3s, set up local cluster, and deploy Traefik and demo apps
 
-Run the `setup_k3s.sh` script to install k3s and set up the local cluster.
+Run the script to install k3s and set up the local k8s cluster.
 
 ```bash
 ./bin/setup_k3s.sh
 ```
 
-## Set up kubectl
+### Set up kubectl
 
-Ensure that the `KUBECONFIG` environment variable is set to the location of the k3s configuration file so that kubectl can connect to the local cluster.
+Ensure that the `KUBECONFIG` environment variable is set to the location of the k3s configuration file so that kubectl can connect to the local cluster and you can run kubectl commands.
 
 ```bash
 export KUBECONFIG=tmp/k3s.yaml
 ```
 
-## Set up Traefik and demo apps
+### Update hosts file for local domains
 
-Run the script that installs Traefik and the demo apps via `helm` and `kubectl`.
+You'll need to update your `/etc/hosts` file to access the demo apps via the local domain. Instructions on how to do thisYou'll get this IP address from the output of the `setup_k3s.sh` script.
 
-```bash
-./bin/deploy_apps_to_k8s.sh
-```
+### Uninstall k3s
 
-## Uninstall k3s
-
-Run the `uninstall_k3s.sh` script to uninstall k3s and remove the local cluster.
+Run the script to uninstall k3s and remove the local cluster.
 
 ```bash
 /usr/local/bin/k3s-uninstall.sh
 ```
 
-## References
+### k3s References
 
 - [k3s](https://k3s.io/)
 - [k3s Documentation](https://docs.k3s.io/installation)
+
+## Running cluster validation tests
+
+To run the tests to validate the demo apps are working, run the following script:
+
+```bash
+./bin/run_tests.sh
+```

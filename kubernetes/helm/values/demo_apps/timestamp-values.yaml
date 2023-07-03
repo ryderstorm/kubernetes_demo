@@ -1,0 +1,10 @@
+name: timestamp
+image: ryderstorm/xyz-demo:timestamp_server
+replicaCount: 1
+ingress:
+  enabled: true
+health:
+  port: 4567
+  path: /health
+http:
+  containerPort: 4567

@@ -1,0 +1,9 @@
+name: ubuntu-testbed
+image: ryderstorm/xyz-demo:ubuntu_testbed
+replicaCount: 1
+ingress:
+  enabled: true
+health:
+  port: 8080
+http:
+  containerPort: 8080

@@ -11,13 +11,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
-
-# =================================================================================================
-# Set Up
-# =================================================================================================
-
-# Define variables
-
+trap trap_cleanup ERR SIGINT SIGTERM
 
 # =================================================================================================
 # Helper Functions
@@ -149,14 +143,14 @@ log_info "Testing the new profile by listing EC2 instances, please wait..."
 TIMEOUT=60
 START_TIME=$(date +%s)
 while true; do
-  if run_command "aws ec2 describe-instances &> /dev/null" true; then
-    show_success_for_aws_cli_setup
-  fi
   CURRENT_TIME=$(date +%s)
   ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
   if [[ $ELAPSED_TIME -gt $TIMEOUT ]]; then
     log_error "Timed out after waiting $TIMEOUT seconds for the new profile to be ready."
     graceful_exit 1
+  fi
+  if run_command "aws ec2 describe-instances &> /dev/null" true; then
+    show_success_for_aws_cli_setup
   fi
   sleep 1
 done

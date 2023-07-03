@@ -1,4 +1,6 @@
 ---
+imagePullSecrets:
+  - name: docker-hub-creds
 ingressClass:
   enabled: true
   isDefaultClass: true
@@ -11,3 +13,4 @@ service:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
 globalArguments:
   - "--api.insecure=true"
+  - "--accesslog=true"

@@ -1,0 +1,5 @@
+name: nginx-hello
+image: nginxdemos/hello
+replicaCount: 1
+ingress:
+  enabled: true

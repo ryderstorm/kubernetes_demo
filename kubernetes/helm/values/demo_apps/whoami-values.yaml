@@ -1,0 +1,5 @@
+name: whoami
+image: traefik/whoami
+replicaCount: 1
+ingress:
+  enabled: true
