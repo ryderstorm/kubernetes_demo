@@ -28,7 +28,7 @@ Run the script to install k3s and set up the local k8s cluster.
 ./bin/setup_k3s.sh
 ```
 
-## Set up kubectl
+### Set up kubectl
 
 Ensure that the `KUBECONFIG` environment variable is set to the location of the k3s configuration file so that kubectl can connect to the local cluster and you can run kubectl commands.
 
@@ -40,7 +40,7 @@ export KUBECONFIG=tmp/k3s.yaml
 
 You'll need to update your `/etc/hosts` file to access the demo apps via the local domain. Instructions on how to do thisYou'll get this IP address from the output of the `setup_k3s.sh` script.
 
-## Uninstall k3s
+### Uninstall k3s
 
 Run the script to uninstall k3s and remove the local cluster.
 
@@ -48,7 +48,15 @@ Run the script to uninstall k3s and remove the local cluster.
 /usr/local/bin/k3s-uninstall.sh
 ```
 
-## References
+### k3s References
 
 - [k3s](https://k3s.io/)
 - [k3s Documentation](https://docs.k3s.io/installation)
+
+## Running cluster validation tests
+
+To run the tests to validate the demo apps are working, run the following script:
+
+```bash
+./bin/run_tests.sh
+```
