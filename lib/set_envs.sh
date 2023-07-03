@@ -33,3 +33,9 @@ fi
 if [ -z "$DEMO_APPS" ]; then
   DEMO_APPS='"whoami" "nginx-hello" "timestamp" "ubuntu-testbed"'
 fi
+
+# Set the Docker repository
+# Eventually this will be a private repository inside the Kubernetes cluster
+# For now, it's a public repository on Docker Hub
+# This also helsp to avoid rate limiting on Docker Hub
+DOCKER_REPOSITORY="ryderstorm/xyz-demo"

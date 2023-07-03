@@ -4,6 +4,14 @@
 
 WIP
 
+## Building Docker Images for the Demo Apps
+
+Before you can deploy the demo apps to Kubernetes, you'll need to build the Docker images for the demo apps. To do this, run the build script:
+
+```bash
+./bin/build_docker_images.sh
+```
+
 ## Deploying a Kubernetes cluster using Terraform and AWS EKS
 
 WIP
@@ -14,7 +22,7 @@ k3s is a lightweight Kubernetes distribution. It is a single binary that provide
 
 ### Install k3s, set up local cluster, and deploy Traefik and demo apps
 
-Run the `setup_k3s.sh` script to install k3s and set up the local k8s cluster.
+Run the script to install k3s and set up the local k8s cluster.
 
 ```bash
 ./bin/setup_k3s.sh
@@ -34,7 +42,7 @@ You'll need to update your `/etc/hosts` file to access the demo apps via the loc
 
 ## Uninstall k3s
 
-Run the `uninstall_k3s.sh` script to uninstall k3s and remove the local cluster.
+Run the script to uninstall k3s and remove the local cluster.
 
 ```bash
 /usr/local/bin/k3s-uninstall.sh
