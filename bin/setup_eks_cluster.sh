@@ -49,6 +49,7 @@ run_command "terraform show -json tfplan > tfplan_output.json"
 
 log_success "Terraform has finished setting up the EKS cluster."
 
+k8s_clear_stale_kubectl_data
 k8s_set_context_to_aws_eks
 
 spacer
@@ -64,13 +65,6 @@ spacer
 log_success "Cluster apps are installed and ready to use."
 log_info "You can access apps in the cluster at the following URLs:"
 traefik_report_access_points
+
+k8s_set_up_dashboard_proxy
 graceful_exit
-
-spacer
-echo -e "
-To destroy the infrastructure, run:
-${BLUE}terraform destroy${NC}
-
-To view resources created by this script on AWS, go to the link below and click ${YELLOW}Search resources${NC}:
-${BLUE}https://${AWS_REGION}.console.aws.amazon.com/resource-groups/tag-editor/find-resources?region=${AWS_REGION}#query=regions:!%28${AWS_REGION}%29,resourceTypes:!%28%27AWS::AllSupported%27%29,tagFilters:!%28%28key:Project,values:!%28${TF_PROJECT}%29%29%29,type:TAG_EDITOR_1_0${NC}
-"

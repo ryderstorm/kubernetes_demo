@@ -163,6 +163,15 @@ k8s_set_context_to_aws_eks() {
   fi
 }
 
+k8s_clear_stale_kubectl_data() {
+  spacer
+  log_info "Clearing stale kubectl contexts, clusters, and users..."
+  run_command "kubectl config get-contexts -o name | grep '$PROJECT_NAME' | xargs -I {} kubectl config delete-context {}"
+  run_command "kubectl config get-clusters -o name | grep '$PROJECT_NAME' | xargs -I {} kubectl config delete-cluster {}"
+  run_command "kubectl config get-users -o name | grep '$PROJECT_NAME' | xargs -I {} kubectl config delete-user {}"
+  run_command "kubectl config unset current-context"
+}
+
 k8s_dashboard_installed() {
   kubectl get ns kubernetes-dashboard  &>/dev/null && return 0 || return 1
 }
@@ -291,10 +300,7 @@ set_up_k8s_cluster() {
     graceful_exit 1
   fi
 
-  k8s_generate_token_for_admin_user
   log_success "Dashboard installed and admin user created."
-  k8s_start_proxy
-  k8s_show_dashboard_access_instructions
 }
 
 k8s_install_traefik() {
@@ -333,6 +339,17 @@ k8s_install_demo_apps() {
   fi
   log_success "Successfully installed demo apps."
 
+}
+
+k8s_set_up_dashboard_proxy() {
+  spacer
+  # prompt the user if they want to enable the dashboard proxy
+  if ! prompt_user "Would you like to enable the dashboard proxy?"; then
+    return 0
+  fi
+  k8s_generate_token_for_admin_user
+  k8s_start_proxy
+  k8s_show_dashboard_access_instructions
 }
 # =================================================================================================
 # Traefik Helper Functions

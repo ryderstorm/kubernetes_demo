@@ -2,7 +2,7 @@
 module "eks" {
   source = "./modules/eks"
 
-  region         = var.region
+  aws_region     = var.aws_region
   project_name   = var.project_name
   instance_types = var.instance_types
 }

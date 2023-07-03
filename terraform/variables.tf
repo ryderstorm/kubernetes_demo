@@ -1,13 +1,13 @@
-variable "region" {
+# This is set by TF_VAR_aws_region in lib/set_envs.sh
+variable "aws_region" {
   description = "AWS region"
   type        = string
-  default     = "us-west-2"
 }
 
+# This is set by TF_VAR_project_name in lib/set_envs.sh
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "xyz-demo"
 }
 
 variable "instance_types" {
