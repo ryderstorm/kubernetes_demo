@@ -139,6 +139,10 @@ terraform_dir() {
   echo "$ROOT_DIR/terraform"
 }
 
+current_commit_sha() {
+  git rev-parse --short HEAD
+}
+
 # =================================================================================================
 # Kubernetes Helper Functions
 # =================================================================================================
@@ -319,7 +323,7 @@ k8s_install_demo_apps() {
   for values_file in "$values_folder"/*; do
     app=$(basename "$values_file" | sed 's/-values.yaml//g')
     log_info "Installing demo app: ${BLUE}$app${NC}"
-    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$(traefik_endpoint_hostname) -n demo-apps $app $chart_folder"
+    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$(traefik_endpoint_hostname) --set git_sha=$(current_commit_sha) -n demo-apps $app $chart_folder"
     run_command "$command"
   done
 

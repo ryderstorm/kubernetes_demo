@@ -39,4 +39,4 @@ USER appuser
 WORKDIR /app
 
 # Start the webserver
-CMD caddy file-server --listen :8080
+CMD caddy file-server --browse --access-log --listen :8080

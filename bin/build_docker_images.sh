@@ -19,11 +19,14 @@ trap trap_cleanup ERR SIGINT SIGTERM
 for app_dir in "$SCRIPT_DIR/../apps"/*; do
   spacer
   app_name=$(basename "$app_dir")
-  log_info "Building and pushing Docker image for ${BLUE}$app_name${NC} to ${CYAN}$DOCKER_REPOSITORY${NC}..."
-  run_command "docker build -t '$app_name' '$app_dir'"
-  run_command "docker tag '$app_name' '$DOCKER_REPOSITORY/$app_name:$(git rev-parse --short HEAD)'"
-  run_command "docker tag '$app_name' '$DOCKER_REPOSITORY/$app_name:latest'"
-  run_command "docker push '$DOCKER_REPOSITORY:$app_name'"
+  image_name="$DOCKER_REPOSITORY-$app_name"
+  git_sha=$(git rev-parse --short HEAD)
+  log_info "Building and pushing Docker image for ${BLUE}$app_name${NC} to ${CYAN}$image_name${NC} with tag ${YELLOW}$git_sha${NC}..."
+  run_command "echo $git_sha > $app_dir/VERSION"
+  # write the current timestamp to the TIMESTAMP file
+  run_command "echo $(date +%s) > $app_dir/TIMESTAMP"
+  run_command "docker build -t $image_name:$git_sha -t $image_name:latest $app_dir"
+  run_command "docker push $image_name"
 done
 
 spacer

@@ -1,5 +1,5 @@
 name: timestamp
-image: ryderstorm/xyz-demo:timestamp_server
+image: ryderstorm/xyz-demo-timestamp-server:latest
 replicaCount: 1
 ingress:
   enabled: true
