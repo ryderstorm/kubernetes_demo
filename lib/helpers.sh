@@ -284,8 +284,9 @@ k8s_install_demo_apps() {
   log_info "Installing demo apps..."
   set_traefik_endpoint
   demo_apps_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
-  for chart in "whoami" "nginx-hello"
+  for chart in $DEMO_APPS;
   do
+    log_info "Installing demo app: ${BLUE}$chart${NC}"
     values_file="$SCRIPT_DIR/../kubernetes/helm/${chart}-values.yaml"
     command="helm upgrade --install --create-namespace --values=$values_file -n demo-apps $chart $demo_apps_folder"
     run_command "$command"
@@ -305,8 +306,6 @@ k8s_install_demo_apps() {
 set_traefik_endpoint() {
   hostname=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
   ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-  echo "hostname: $hostname"
-  echo "ip: $ip"
   # if both the hostname and ip are empty, throw an error
   if [ -z "$hostname" ] && [ -z "$ip" ]; then return 1; fi
   # if the hostname is empty, then we're using ks3 on a local machine
@@ -350,11 +349,10 @@ display_app_urls() {
   set_traefik_endpoint
 
   # show the traefik dashboard url
-  echo -e "Traefik Dashboard URL:\n${BLUE}http://$TRAEFIK_ENDPOINT/dashboard/${NC}\n"
+  echo -e "Traefik Dashboard URL:\n${BLUE}http://traefik.$TRAEFIK_ENDPOINT/${NC}\n"
   # loop through each app in the demo-apps namespace and print the url
   echo -e "App URLs:"
   for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
-    path=$(kubectl get ingress "$app" -n demo-apps -o jsonpath='{.spec.rules[0].http.paths[0].path}')
-    echo -e "${BLUE}http://$TRAEFIK_ENDPOINT$path${NC}"
+    echo -e "${BLUE}http://$app.$TRAEFIK_ENDPOINT${NC}"
   done
 }

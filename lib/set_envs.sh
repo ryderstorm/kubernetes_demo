@@ -28,3 +28,8 @@ fi
 if [ -z "$K3S_HOST_NAME" ]; then
   K3S_HOST_NAME="k3s.local"
 fi
+
+# Set the list of demo apps to install
+if [ -z "$DEMO_APPS" ]; then
+  DEMO_APPS='"whoami" "nginx-hello" "timestamp" "ubuntu-testbed"'
+fi
