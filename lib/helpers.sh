@@ -6,6 +6,9 @@
 # =================================================================================================
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export ROOT_DIR="$SCRIPT_DIR/.."
+
+set -e
 
 # =================================================================================================
 # Bash Colors and Spacers
@@ -132,6 +135,10 @@ graceful_exit() {
   exit "$exit_code"
 }
 
+terraform_dir() {
+  echo "$ROOT_DIR/terraform"
+}
+
 # =================================================================================================
 # Kubernetes Helper Functions
 # =================================================================================================
@@ -140,7 +147,18 @@ k8s_running() {
   kubectl get nodes &>/dev/null && return 0 || return 1
 }
 
-# Function for checking if the k8s dashboard is installed
+k8s_set_context_to_aws_eks() {
+  unset KUBECONFIG
+  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw cluster_name)
+  if [ "$(kubectl config current-context 2>/dev/null)" != "$cluster_name" ]; then
+    spacer
+    log_info "Configuring kubectl to work with the EKS cluster..."
+    run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
+    run_command "aws eks --region $AWS_REGION update-kubeconfig --name $cluster_name"
+    run_command "kubectl config rename-context $(kubectl config current-context) $cluster_name"
+  fi
+}
+
 k8s_dashboard_installed() {
   kubectl get ns kubernetes-dashboard  &>/dev/null && return 0 || return 1
 }
@@ -163,7 +181,6 @@ set_docker_hub_secret() {
   log_success "Docker hub secret set for namespace: ${BLUE}$namespace${NC}"
 }
 
-# Kubectl command for installing the latest version of the Kubernetes dashboard
 k8s_install_dashboard() {
   log_info "Installing KubernetesDashboard in..."
   # from: https://docs.k3s.io/installation/kube-dashboard#deploying-the-kubernetes-dashboard

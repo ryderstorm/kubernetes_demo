@@ -45,18 +45,11 @@ run_command "terraform apply tfplan"
 
 # write the state to a file for debugging
 log_info "Writing Terraform state to file..."
-run_command "terraform show -json tfplan > tf_output.json"
+run_command "terraform show -json tfplan > tfplan_output.json"
 
 log_success "Terraform has finished setting up the EKS cluster."
 
-# update kubeconfig if the current context is not the new cluster
-if [ "$(kubectl config current-context)" != "$(terraform output -raw cluster_name)" ]; then
-  spacer
-  log_info "Configuring kubectl to work with new EKS cluster..."
-  run_command "kubectl config delete-context $(terraform output -raw cluster_name) &> /dev/null || true"
-  run_command "aws eks --region $(terraform output -raw region) update-kubeconfig     --name $(terraform output -raw cluster_name)"
-  run_command "kubectl config rename-context $(kubectl config current-context) $(terraform output -raw cluster_name)"
-fi
+k8s_set_context_to_aws_eks
 
 spacer
 
@@ -70,7 +63,7 @@ spacer
 
 log_success "Cluster apps are installed and ready to use."
 log_info "You can access apps in the cluster at the following URLs:"
-display_app_urls
+traefik_report_access_points
 graceful_exit
 
 spacer
