@@ -12,7 +12,6 @@ health:
   port: 80
 ingress:
   enabled: false
-  host: k3s.local
   path: /
 http:
   port: 80
