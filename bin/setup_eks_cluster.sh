@@ -13,6 +13,16 @@ source "$SCRIPT_DIR/../lib/helpers.sh"
 
 trap trap_cleanup ERR SIGINT SIGTERM
 
+declare -A REQUIRED_APPS=(
+  ["awscli"]="aws --version ||| https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions"
+  ["helm"]="helm version --client ||| https://helm.sh/docs/intro/install/"
+  ["jq"]="jq --version ||| https://stedolan.github.io/jq/download/"
+  ["kubectl"]="kubectl version --client ||| https://kubernetes.io/docs/tasks/tools/#kubectl"
+  ["terraform"]="terraform version ||| https://learn.hashicorp.com/tutorials/terraform/install-cli"
+)
+export REQUIRED_APPS
+check_installed_apps
+
 spacer
 # Initialize Terraform
 log_info "Initializing Terraform..."

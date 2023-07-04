@@ -73,7 +73,7 @@ log_error() {
 }
 
 # =================================================================================================
-# Helper Functions
+# General Helper Functions
 # =================================================================================================
 
 # Function to use in trap to handle errors and gracefully exit the script
@@ -141,6 +141,86 @@ terraform_dir() {
 
 current_commit_sha() {
   git rev-parse --short HEAD
+}
+
+# =================================================================================================
+# Checking for Dependencies
+# =================================================================================================
+
+# Returns a string of all the required app names in alphabetical order
+required_app_names() {
+  echo "${!REQUIRED_APPS[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '
+}
+
+# Reports the installation status of all required apps
+check_installed_apps() {
+  all_apps_installed=true
+  installed_apps=()
+  missing_apps=()
+  log_info "Checking for required apps..."
+  for app in $(required_app_names); do
+    check_installed_command="${REQUIRED_APPS[$app]%%|||*} &> /dev/null"
+    install_instructions="${REQUIRED_APPS[$app]##*|||}"
+    if ! eval "$check_installed_command"; then
+      missing_apps+=("${YELLOW}$app${NC} is not installed. See installation instructions here: ${BLUE}$install_instructions${NC}")
+      all_apps_installed=false
+    else
+      installed_apps+=("$app")
+    fi
+  done
+  for app in "${installed_apps[@]}"; do
+    log_info "App is installed: ${GREEN}$app${NC}"
+  done
+  for app_install_instructions in "${missing_apps[@]}"; do
+    log_error "$app_install_instructions"
+  done
+  if [ "$all_apps_installed" = false ]; then
+    spacer
+    log_error "Some apps are not installed. Please install them and try again."
+    graceful_exit 1
+  else
+    log_success "All required apps are installed!"
+  fi
+}
+
+# =================================================================================================
+# k3s Helper Functions
+# =================================================================================================
+
+
+k3s_installed() {
+  k3s --version &>/dev/null && return 0 || return 1
+}
+
+install_k3s() {
+  spacer
+  log_info "${WHITE}This script will install k3s onto your local machine.${NC}"
+  log_warn "${WHITE}You will be prompted for your sudo password during the installation process.${NC}"
+  if [ "$1" != "confirm" ] && ! prompt_yes_no "Do you wish to continue?"; then
+    graceful_exit 0
+  fi
+
+  log_info "Installing k3s..."
+  # from: https://rancher.com/docs/k3s/latest/en/installation/install-options/
+  # the --write-kubeconfig-mode 644 flag allows k3s to be run as a non-root user
+  run_command "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode 644 --disable=traefik' sh -"
+  log_success "Successfully installed k3s."
+  log_info "Configuring kubectl to work with new k3s cluster..."
+  run_command "cp /etc/rancher/k3s/k3s.yaml $SCRIPT_DIR/../tmp/k3s.yaml"
+  run_command "export KUBECONFIG=$ROOT_DIR/tmp/k3s.yaml"
+  run_command "kubectl config rename-context default k3s-local"
+}
+
+k3s_show_reinstall_warning() {
+  spacer
+  log_warn "k3s is already installed."
+  log_warn "If you wish to reinstall k3s, please uninstall it with the following command:"
+  log_warn "${BLUE}/usr/local/bin/k3s-uninstall.sh${NC}"
+  log_warn "And run this script again."
+  spacer
+  if [ "$1" != "confirm" ] && ! prompt_yes_no "Do you wish to continue and reapply the cluster configuration to the existing cluster?"; then
+    graceful_exit 0
+  fi
 }
 
 # =================================================================================================

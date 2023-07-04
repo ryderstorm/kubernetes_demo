@@ -7,7 +7,7 @@
 # Set the AWS Region to use
 if [ -z "$AWS_REGION" ]; then
   # AWS_REGION="us-west-2"
-  AWS_REGION="us-east-1"
+  AWS_REGION="us-east-2"
   export TF_VAR_aws_region="$AWS_REGION"
 fi
 
@@ -24,6 +24,11 @@ fi
 # Set the default policy name for the AWS CLI
 if [ -z "$POLICY_NAME" ]; then
   POLICY_NAME="xyz-demo-policy"
+fi
+
+# Set the default policy file path for the AWS CLI
+if [ -z "$POLICY_FILE_PATH" ]; then
+  POLICY_FILE_PATH="config/iam_policy.json"
 fi
 
 # Set the defaul project name
