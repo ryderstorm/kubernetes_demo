@@ -4,16 +4,30 @@
 # Set default environment variables
 # =================================================================================================
 
+# Set EXIT_ON_ERROR if not already set
+if [ -z "$EXIT_ON_ERROR" ]; then
+  EXIT_ON_ERROR=true
+fi
+
+# Set the defaul project name
+if [ -z "$PROJECT_NAME" ]; then
+  PROJECT_NAME="xyz-demo"
+  export TF_VAR_project_name="$PROJECT_NAME"
+fi
+
+# Set the list of demo apps to install
+if [ -z "$DEMO_APPS" ]; then
+  DEMO_APPS='"whoami" "nginx-hello" "timestamp" "ubuntu-testbed"'
+fi
+
+# =================================================================================================
+# AWS Specific Environment Variables
+# =================================================================================================
 # Set the AWS Region to use
 if [ -z "$AWS_REGION" ]; then
   # AWS_REGION="us-west-2"
   AWS_REGION="us-east-2"
   export TF_VAR_aws_region="$AWS_REGION"
-fi
-
-# Set EXIT_ON_ERROR if not already set
-if [ -z "$EXIT_ON_ERROR" ]; then
-  EXIT_ON_ERROR=true
 fi
 
 # Set the default user name for the AWS CLI
@@ -42,10 +56,27 @@ if [ -z "$LOCAL_HOSTNAME" ]; then
   LOCAL_HOSTNAME="k8s.local"
 fi
 
-# Set the list of demo apps to install
-if [ -z "$DEMO_APPS" ]; then
-  DEMO_APPS='"whoami" "nginx-hello" "timestamp" "ubuntu-testbed"'
+# =================================================================================================
+# Digital Ocean Specific Environment Variables
+# =================================================================================================
+
+# Set the Digital Ocean Access Token
+if [ -z "$DIGITAL_OCEAN_TOKEN" ]; then
+  echo -e "${RED}ERROR: The DIGITAL_OCEAN_TOKEN environment variable is not set.${NC}"
+  echo -e "${RED}Please set the DIGITAL_OCEAN_TOKEN environment variable to your Digital Ocean API token.${NC}"
+  graceful_exit 1
+else
+  export TF_VAR_do_token=$DIGITAL_OCEAN_TOKEN
 fi
+
+# Set the Digital Ocean Region to use
+if [ -z "$DIGITALOCEAN_REGION" ]; then
+  DIGITALOCEAN_REGION="nyc3"
+  export TF_VAR_do_region="$DIGITALOCEAN_REGION"
+fi
+
+
+
 
 # Set the Docker repository
 # Eventually this will be a private repository inside the Kubernetes cluster

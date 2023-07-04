@@ -231,15 +231,16 @@ k8s_running() {
   kubectl get nodes &>/dev/null && return 0 || return 1
 }
 
-k8s_set_context_to_aws_eks() {
+k8s_set_context_to_new_cluster() {
   unset KUBECONFIG
   cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw cluster_name)
+  cluster_id=$(terraform -chdir="$(terraform_dir)" output -raw cluster_id)
   if [ "$(kubectl config current-context 2>/dev/null)" != "$cluster_name" ]; then
     spacer
-    log_info "Configuring kubectl to work with the EKS cluster..."
+    log_info "Configuring kubectl to work with the DO K8S cluster..."
     run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
-    run_command "aws eks --region $AWS_REGION update-kubeconfig --name $cluster_name"
-    run_command "kubectl config rename-context $(kubectl config current-context) $cluster_name"
+    run_command "doctl kubernetes cluster kubeconfig save --alias $cluster_name $cluster_id"
+    # run_command "kubectl config rename-context $(kubectl config current-context) $cluster_name"
   fi
 }
 

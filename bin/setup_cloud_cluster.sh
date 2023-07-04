@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =================================================================================================
-# This script uses Terraform, Helm, and kubectl to set up the EKS cluster and deploy the demo apps.
+# This script uses Terraform, Helm, and kubectl to set up a Kubernetes cluster on a cloud service and deploy the demo apps to it.
 # =================================================================================================
 
 set -e
@@ -22,6 +22,19 @@ declare -A REQUIRED_APPS=(
 )
 export REQUIRED_APPS
 check_installed_apps
+
+# Prompt the user for which cloud service to use
+spacer
+echo -e "${WHITE}Which cloud service would you like to use?${NC}"
+select cloud_service in "AWS" "DigitalOcean" "Quit"; do
+  case $cloud_service in
+    AWS ) cloud_service=aws; break;;
+    DigitalOcean ) cloud_service=digitalocean; break;;
+    Quit ) graceful_exit 0;;
+  esac
+done
+
+export TF_VAR_selected_cloud_service=$cloud_service
 
 spacer
 # Initialize Terraform
@@ -56,7 +69,7 @@ run_command "terraform show -json tfplan > tfplan_output.json"
 log_success "Terraform has finished setting up the EKS cluster."
 
 k8s_clear_stale_kubectl_data
-k8s_set_context_to_aws_eks
+k8s_set_context_to_new_cluster
 
 spacer
 

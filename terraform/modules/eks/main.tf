@@ -1,3 +1,27 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.47.0"
+    }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.4.3"
+    }
+
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0.4"
+    }
+
+    cloudinit = {
+      source  = "hashicorp/cloudinit"
+      version = "~> 2.2.0"
+    }
+  }
+}
+
 provider "aws" {
   region = var.aws_region
 }
@@ -16,6 +40,9 @@ resource "random_string" "suffix" {
 }
 
 module "vpc" {
+  # Load this resource only if the "cloud_service" environment variable is set to "aws"
+  count = var.cloud_service == "aws" ? 1 : 0
+
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.19.0"
 
@@ -43,6 +70,9 @@ module "vpc" {
 }
 
 module "eks" {
+  # Load this resource only if the "cloud_service" environment variable is set to "aws"
+  count = var.cloud_service == "aws" ? 1 : 0
+
   source  = "terraform-aws-modules/eks/aws"
   version = "19.5.1"
 
