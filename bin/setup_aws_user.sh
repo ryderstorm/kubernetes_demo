@@ -18,7 +18,15 @@ trap trap_cleanup ERR SIGINT SIGTERM
 # =================================================================================================
 
 create_user() {
-  if user_already_exists; then return; fi
+  if user_already_exists; then
+    log_warn "IAM user already exists: $IAM_USER_NAME. Skipping user creation"
+    log_warn "If you want to create a new user, delete the existing user and try again."
+    if ! prompt_yes_no "\nDo you want to update the existing user's policy, access keys, and login profile?"; then
+      graceful_exit 0
+    fi
+    log_info "Updating user's policy, access keys, and login profile..."
+    return
+  fi
   log_info "Creating IAM user: $IAM_USER_NAME"
   run_command "aws iam create-user --user-name '$IAM_USER_NAME'"
 }
@@ -27,8 +35,16 @@ user_already_exists() {
   run_command "aws iam get-user --user-name '$IAM_USER_NAME' &> /dev/null" true
 }
 
+verify_policy_file() {
+  # check that the file exists
+  if [ ! -f "$POLICY_FILE_PATH" ]; then
+    log_error "Policy file not found: $POLICY_FILE_PATH"
+    graceful_exit 1
+  fi
+}
+
 iam_policy_content() {
-  jq -c . "$SCRIPT_DIR/../config/iam_policy.json"
+  jq -c . "$POLICY_FILE_PATH"
 }
 
 user_has_policy() {
@@ -105,20 +121,25 @@ remove_iam_user_credentials() {
 }
 
 show_success_for_aws_cli_setup() {
+  sleep 2 # add a little buffer to make sure user is fully set up before showing success message
   spacer
+  iam_arn=$(aws iam get-user --query 'User.Arn' --output text)
+  acount_id=$(aws sts get-caller-identity --query 'Account' --output text)
+  password=$(cat "$SCRIPT_DIR/../tmp/aws_console_password.txt")
   log_success "Success! The new profile is ready to use."
   echo -e "
 
 You can switch this console window to the new profile by running the following command:
-${GREEN}export AWS_PROFILE=$IAM_USER_NAME${NC}
+${BLUE}export AWS_PROFILE=$IAM_USER_NAME${NC}
 
-To login to the AWS Console with this account, go to:
-${BLUE}https://${AWS_REGION}.console.aws.amazon.com/${NC}
+To login to the AWS Console with this user, go to ${BLUE}https://${AWS_REGION}.console.aws.amazon.com/${NC} and use the following credentials:
 
-and use the following credentials:
-${BLUE}Account ID:${NC} $(aws sts get-caller-identity --query 'Account' --output text)
-${BLUE}Username:${NC} $IAM_USER_NAME
-${BLUE}Password:${NC} $(cat "$SCRIPT_DIR/../tmp/aws_console_password.txt")
+${BLUE}Account ID:        ${NC} $iam_arn
+${BLUE}ARN for user:      ${NC} $acount_id
+${BLUE}Username for user: ${NC} $IAM_USER_NAME
+${BLUE}Password for user: ${NC} $password
+
+${YELLOW}The password has been saved to $SCRIPT_DIR/../tmp/aws_console_password.txt${NC}
 "
 
   graceful_exit
@@ -127,6 +148,8 @@ ${BLUE}Password:${NC} $(cat "$SCRIPT_DIR/../tmp/aws_console_password.txt")
 # =================================================================================================
 # Main Script
 # =================================================================================================
+
+verify_policy_file
 
 # If the first parameter is "delete", delete the user and exit
 if [[ "$1" == "delete" ]]; then
@@ -139,7 +162,7 @@ update_user_policy
 update_access_credentials
 generate_login_credentials
 export AWS_PROFILE="$IAM_USER_NAME"
-log_info "Testing the new profile by listing EC2 instances, please wait..."
+log_info "Testing the new profile ${BLUE}aws ec2 describe-instances${NC}, please wait..."
 TIMEOUT=60
 START_TIME=$(date +%s)
 while true; do
@@ -149,8 +172,9 @@ while true; do
     log_error "Timed out after waiting $TIMEOUT seconds for the new profile to be ready."
     graceful_exit 1
   fi
-  if run_command "aws ec2 describe-instances &> /dev/null" true; then
+  if aws ec2 describe-instances &> /dev/null; then
     show_success_for_aws_cli_setup
   fi
+  printf "."
   sleep 1
 done
