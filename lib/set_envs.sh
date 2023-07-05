@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =================================================================================================
-# Set default environment variables
+# General
 # =================================================================================================
 
 # Set EXIT_ON_ERROR if not already set
@@ -21,7 +21,7 @@ if [ -z "$DEMO_APPS" ]; then
 fi
 
 # =================================================================================================
-# AWS Specific Environment Variables
+# AWS
 # =================================================================================================
 # Set the AWS Region to use
 if [ -z "$AWS_REGION" ]; then
@@ -57,15 +57,11 @@ if [ -z "$LOCAL_HOSTNAME" ]; then
 fi
 
 # =================================================================================================
-# Digital Ocean Specific Environment Variables
+# Digital Ocean Specific
 # =================================================================================================
 
 # Set the Digital Ocean Access Token
 if [ -z "$DIGITAL_OCEAN_TOKEN" ]; then
-  echo -e "${RED}ERROR: The DIGITAL_OCEAN_TOKEN environment variable is not set.${NC}"
-  echo -e "${RED}Please set the DIGITAL_OCEAN_TOKEN environment variable to your Digital Ocean API token.${NC}"
-  graceful_exit 1
-else
   export TF_VAR_do_token=$DIGITAL_OCEAN_TOKEN
 fi
 
@@ -75,7 +71,9 @@ if [ -z "$DIGITALOCEAN_REGION" ]; then
   export TF_VAR_do_region="$DIGITALOCEAN_REGION"
 fi
 
-
+# =================================================================================================
+# Docker Repository
+# =================================================================================================
 
 
 # Set the Docker repository

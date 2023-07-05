@@ -4,15 +4,18 @@ variable "project_name" {
   type        = string
 }
 
+# This is set by TF_VAR_selected_cluster_type in lib/set_envs.sh
+variable "selected_cluster_type" {
+  description = "Cloud service specified by the user"
+  type        = string
+  default     = "aws"
+}
+
+# ==================== AWS ====================
+
 # This is set by TF_VAR_aws_region in lib/set_envs.sh
 variable "aws_region" {
   description = "AWS region"
-  type        = string
-}
-
-# This is set by TF_VAR_aws_region in lib/set_envs.sh
-variable "do_region" {
-  description = "Digital Ocean region"
   type        = string
 }
 
@@ -28,14 +31,18 @@ variable "do_instance_types" {
   default     = ["s-2vcpu-2gb-amd"]
 }
 
-variable "selected_cloud_service" {
-  description = "Cloud service specified by the user"
+
+# ==================== Digtal Ocean ====================
+
+# This is set by TF_VAR_aws_region in lib/set_envs.sh
+variable "do_region" {
+  description = "Digital Ocean region"
   type        = string
-  default     = "aws"
 }
 
 # This is set by TF_VAR_do_token in lib/set_envs.sh
 variable "do_token" {
   description = "Digital Ocean token"
   type        = string
+  default     = "not_set"
 }

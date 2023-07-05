@@ -40,8 +40,8 @@ resource "random_string" "suffix" {
 }
 
 module "vpc" {
-  # Load this resource only if the "cloud_service" environment variable is set to "aws"
-  count = var.cloud_service == "aws" ? 1 : 0
+  # Load this resource only if the "cluster_type" environment variable is set to "aws"
+  count = var.cluster_type == "aws" ? 1 : 0
 
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.19.0"
@@ -70,8 +70,8 @@ module "vpc" {
 }
 
 module "eks" {
-  # Load this resource only if the "cloud_service" environment variable is set to "aws"
-  count = var.cloud_service == "aws" ? 1 : 0
+  # Load this resource only if the "cluster_type" environment variable is set to "aws"
+  count = var.cluster_type == "aws" ? 1 : 0
 
   source  = "terraform-aws-modules/eks/aws"
   version = "19.5.1"

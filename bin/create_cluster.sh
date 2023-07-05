@@ -25,16 +25,17 @@ check_installed_apps
 
 # Prompt the user for which cloud service to use
 spacer
-echo -e "${WHITE}Which cloud service would you like to use?${NC}"
-select cloud_service in "AWS" "DigitalOcean" "Quit"; do
-  case $cloud_service in
-    AWS ) cloud_service=aws; break;;
-    DigitalOcean ) cloud_service=digitalocean; break;;
+echo -e "${WHITE}What type of k8s cluster do you want to create?${NC}"
+select cluster_type in "AWS" "DigitalOcean" "k3s (local)" "Quit"; do
+  case $cluster_type in
+    AWS ) cluster_type=aws; break;;
+    DigitalOcean ) cluster_type=digital_ocean; break;;
+    "k3s (local)" ) cluster_type=k3s; break;;
     Quit ) graceful_exit 0;;
   esac
 done
 
-export TF_VAR_selected_cloud_service=$cloud_service
+export TF_VAR_selected_cluster_type=$cluster_type
 
 spacer
 # Initialize Terraform
@@ -69,7 +70,13 @@ run_command "terraform show -json tfplan > tfplan_output.json"
 log_success "Terraform has finished setting up the EKS cluster."
 
 k8s_clear_stale_kubectl_data
-k8s_set_context_to_new_cluster
+# set the cluster context based on the cluster type
+case $cluster_type in
+  aws ) k8s_set_context_to_aws_cluster;;
+  digital_ocean ) k8s_set_context_to_digital_ocean_cluster;;
+  k3s ) k8s_set_context_to_new_cluster;;
+esac
+
 
 spacer
 

@@ -231,10 +231,13 @@ k8s_running() {
   kubectl get nodes &>/dev/null && return 0 || return 1
 }
 
-k8s_set_context_to_new_cluster() {
+k8s_set_context_to_digital_ocean_cluster() {
+  log_info "Setting kubectl context to Digital Ocean cluster..."
   unset KUBECONFIG
-  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw cluster_name)
-  cluster_id=$(terraform -chdir="$(terraform_dir)" output -raw cluster_id)
+  cluster_name=$(terraform -chdir="$(terraform_dir)" output -json cluster_name | jq -r '.[0]')
+  cluster_id=$(terraform -chdir="$(terraform_dir)" output -json cluster_id | jq -r '.[1]')
+  log_info "Cluster name: $cluster_name"
+  log_info "Cluster ID: $cluster_id"
   if [ "$(kubectl config current-context 2>/dev/null)" != "$cluster_name" ]; then
     spacer
     log_info "Configuring kubectl to work with the DO K8S cluster..."

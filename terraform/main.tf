@@ -4,7 +4,7 @@
 #   aws_region     = var.aws_region
 #   project_name   = var.project_name
 #   instance_types = var.aws_instance_types
-#   cloud_service  = var.selected_cloud_service
+#   cluster_type  = var.selected_cluster_type
 # }
 
 module "do_k8s" {
@@ -13,7 +13,7 @@ module "do_k8s" {
   region         = var.do_region
   project_name   = var.project_name
   instance_types = var.do_instance_types
-  cloud_service  = var.selected_cloud_service
+  cluster_type   = var.selected_cluster_type
   do_token       = var.do_token
 }
 
