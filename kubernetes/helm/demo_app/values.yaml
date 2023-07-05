@@ -7,10 +7,10 @@ health:
   enabled: true
   path: /
   port: 80
-ingress:
+subdomain:
   enabled: false
-  path: /
 http:
   port: 80
   containerPort: 80
   name: http
+  path: /

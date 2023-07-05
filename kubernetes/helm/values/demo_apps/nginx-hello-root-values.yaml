@@ -1,5 +1,5 @@
-name: nginx-hello
+name: nginx-hello-root
 image: nginxdemos/hello
 replicaCount: 1
 subdomain:
-  enabled: true
+  enabled: false

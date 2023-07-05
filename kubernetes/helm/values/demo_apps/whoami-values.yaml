@@ -1,5 +1,5 @@
 name: whoami
 image: traefik/whoami
 replicaCount: 1
-ingress:
+subdomain:
   enabled: true

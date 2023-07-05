@@ -39,7 +39,7 @@ spacer
 
 log_success "Cluster apps are installed and ready to use."
 log_info "You can access apps in the cluster at the following URLs:"
-traefik_report_access_points
+report_access_points
 log_info "To use kubectl with k3s you must run:\n${BLUE}export KUBECONFIG=tmp/k3s.yaml${NC}\n"
 log_info "To test that it is working, run:\n${BLUE}kubectl get nodes${NC}\n"
 k8s_set_up_dashboard_proxy

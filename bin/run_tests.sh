@@ -35,14 +35,9 @@ else
 fi
 
 spacer
-traefik_set_endpoint
-if [ -z "$TRAEFIK_ENDPOINT" ]; then
-  log_error "Could not determine the cluster endpoint. Is the cluster running?"
-  graceful_exit 1
-fi
-
+traefik_set_endpoints
 log_info "Setting up for responsiveness test..."
 run_command "bundle install"
 
 spacer
-CLUSTER_ENDPOINT="$TRAEFIK_ENDPOINT" rspec "$SCRIPT_DIR/../spec/responsiveness_spec.rb"
+rspec "$SCRIPT_DIR/../spec/responsiveness_spec.rb"

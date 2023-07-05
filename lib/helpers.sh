@@ -396,20 +396,20 @@ k8s_install_traefik() {
     graceful_exit 1
   fi
   dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
-  command="cat '$dashboard_file' | sed 's/KUBERNETES_HOSTNAME/Host(\`traefik.$(traefik_endpoint_hostname)\`)/g' | kubectl apply -f -"
+  command="cat '$dashboard_file' | sed 's/KUBERNETES_HOSTNAME/Host(\`traefik.$LOCAL_HOSTNAME\`)/g' | kubectl apply -f -"
   run_command "$command"
   log_success "Successfully installed Traefik. Please try running this script again."
 }
 
 k8s_install_demo_apps() {
   set_docker_hub_secret "demo-apps"
-  traefik_set_endpoint
+  traefik_set_endpoints
   chart_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
   values_folder="$SCRIPT_DIR/../kubernetes/helm/values/demo_apps"
   for values_file in "$values_folder"/*; do
     app=$(basename "$values_file" | sed 's/-values.yaml//g')
     log_info "Installing demo app: ${BLUE}$app${NC}"
-    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$(traefik_endpoint_hostname) --set git_sha=$(current_commit_sha) -n demo-apps $app $chart_folder"
+    command="helm upgrade --install --create-namespace --values=$values_file --set ingress.host=$LOCAL_HOSTNAME --set git_sha=$(current_commit_sha) -n demo-apps $app $chart_folder"
     run_command "$command"
   done
 
@@ -435,33 +435,13 @@ k8s_set_up_dashboard_proxy() {
 # Traefik Helper Functions
 # =================================================================================================
 
-traefik_endpoint_hostname() {
-  if [ "$RUNNING_K3S" == "true" ]; then
-    echo "$K3S_HOST_NAME"
-    return 0
-  fi
-  kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-}
-
-traefik_endpoint_ip() {
-  kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-}
-
-traefik_set_endpoint() {
-  hostname=$(traefik_endpoint_hostname)
-  ip=$(traefik_endpoint_ip)
-  # if both the hostname and ip are empty, throw an error
-  if [ -z "$hostname" ] && [ -z "$ip" ]; then return 1; fi
-  export TRAEFIK_ENDPOINT=$hostname
+traefik_set_endpoints() {
+  lb_endpoint=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  export LOAD_BALANCER_ENDPOINT=$lb_endpoint
+  export CLUSTER_ENDPOINT=$LOCAL_HOSTNAME
+  export CLUSTER_IP=$ip
   return 0
-}
-
-traefik_dashboard_responding() {
-  if curl -s -o /dev/null --fail "http://$(traefik_endpoint_ip)/dashboard/"; then
-    return 0
-  else
-    return 1
-  fi
 }
 
 traefik_wait_for_endpoint() {
@@ -476,7 +456,7 @@ traefik_wait_for_endpoint() {
       log_error "Timed out waiting for Traefik load balancer to be ready."
       graceful_exit 1
     fi
-    if traefik_dashboard_responding; then
+    if curl -s -o /dev/null --fail "http://$CLUSTER_IP/dashboard/"; then
       echo ""
       return 0
     fi
@@ -485,23 +465,26 @@ traefik_wait_for_endpoint() {
   done
 }
 
-traefik_report_access_points() {
-  traefik_set_endpoint
-  ip=$(traefik_endpoint_ip)
-  log_info "Reporting access points for Traefik and demo apps:"
-  log_info "Traefik Dashboard URL:"
-  log_info "${BLUE}http://traefik.$TRAEFIK_ENDPOINT/${NC}\n"
+report_access_points() {
+  traefik_set_endpoints
+  app_hosts=$(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].spec.rules[*].host}')
+  if [ ! "$RUNNING_K3S" = true ]; then
+    log_info "Load balancer endpoint: ${BLUE}http://$LOAD_BALANCER_ENDPOINT${NC}"
+  fi
+  log_info "Cluster endpoint: ${BLUE}http://$CLUSTER_ENDPOINT${NC}"
+  log_info "Cluster IP: ${BLUE}$CLUSTER_IP${NC}\n"
+  log_info "Access points for Traefik and demo apps:"
+  log_info "Traefik Dashboard URL: ${BLUE}http://traefik.$CLUSTER_ENDPOINT/${NC}\n"
   log_info "App URLs:"
-  for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
-    log_info "${BLUE}http://$app.$TRAEFIK_ENDPOINT${NC}"
+  for app_host in $app_hosts; do
+    log_info "${BLUE}http://$app_host${NC}"
   done
 
-  if [ ! "$RUNNING_K3S" = true ]; then return 0; fi
   spacer
   log_info "To access the Traefik dashboard and demo apps you'll need to add the following entries to your /etc/hosts file:"
-  echo -e "${BLUE}$ip $TRAEFIK_ENDPOINT${NC}"
-  echo -e "${BLUE}$ip traefik.$TRAEFIK_ENDPOINT${NC}"
-  for app in $(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].metadata.name}'); do
-    echo -e "${BLUE}$ip $app.$TRAEFIK_ENDPOINT${NC}"
+  echo -e "${BLUE}$ip $CLUSTER_ENDPOINT${NC}"
+  echo -e "${BLUE}$ip traefik.$CLUSTER_ENDPOINT${NC}"
+  for app_host in $app_hosts; do
+    echo -e "${BLUE}$ip $app_host${NC}"
   done
 }

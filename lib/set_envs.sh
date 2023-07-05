@@ -36,9 +36,10 @@ if [ -z "$PROJECT_NAME" ]; then
   PROJECT_NAME="xyz-demo"
   export TF_VAR_project_name="$PROJECT_NAME"
 fi
+
 # Set the local host name for the k3s cluster
-if [ -z "$K3S_HOST_NAME" ]; then
-  K3S_HOST_NAME="k3s.local"
+if [ -z "$LOCAL_HOSTNAME" ]; then
+  LOCAL_HOSTNAME="k8s.local"
 fi
 
 # Set the list of demo apps to install

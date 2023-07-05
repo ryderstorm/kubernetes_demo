@@ -1,7 +1,7 @@
 name: game
 image: alexwhen/docker-2048
 replicaCount: 1
-ingress:
+subdomain:
   enabled: true
 health:
   port: 80

@@ -1,7 +1,7 @@
 name: ubuntu-testbed
 image: ryderstorm/xyz-demo-ubuntu-testbed:latest
 replicaCount: 1
-ingress:
+subdomain:
   enabled: true
 health:
   port: 8080

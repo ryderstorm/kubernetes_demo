@@ -1,7 +1,7 @@
 name: timestamp
 image: ryderstorm/xyz-demo-timestamp-server:latest
 replicaCount: 1
-ingress:
+subdomain:
   enabled: true
 health:
   port: 4567

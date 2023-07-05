@@ -70,7 +70,7 @@ spacer
 
 log_success "Cluster apps are installed and ready to use."
 log_info "You can access apps in the cluster at the following URLs:"
-traefik_report_access_points
+report_access_points
 
 k8s_set_up_dashboard_proxy
 graceful_exit
