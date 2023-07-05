@@ -40,8 +40,9 @@ class TimeStampServer < Sinatra::Base
     version_file = 'VERSION'
     timestamp_file = 'TIMESTAMP'
     version = File.exist?(version_file) ? File.read(version_file).strip : 'unknown'
-    timestamp = File.exist?(timestamp_file) ? File.read(timestamp_file).strip : 'unknown'
-    { version: version, timestamp: timestamp }.to_json
+    build_time = File.exist?(timestamp_file) ? File.read(timestamp_file).strip : 'unknown'
+    pretty_build_time = Time.at(build_time.to_i).utc.strftime('%Y-%m-%d %H:%M:%S UTC')
+    { version: version, build_time: build_time, pretty_build_time: pretty_build_time }.to_json
   end
 end
 
