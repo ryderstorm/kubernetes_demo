@@ -1,5 +1,5 @@
 name: demo-app
-replicaCount: 1
+replicas: 1
 altCommand:
   enabled: false
   command: ""
