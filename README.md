@@ -187,3 +187,34 @@ k9s
 ```
 
 Check out the [k9s documentation](https://k9scli.io/) for more information on using `k9s`.
+
+## Load testing the cluster during an app update
+
+We'll use the timestamp app to demonstrate the cluster's ability to maintain service during an app update.
+
+### Order of operations
+
+1. Run the monoitoring scrpt to monitor the timestamp app endpoint
+
+- ```bash
+  ./bin/endpoint_monitor.sh
+  ```
+
+2. Scale the endpoint up to 5 replicas
+3. Make a change in `apps/timestamp-server/server.rb` that affects the output of the timestamp app on the `/` endpoint
+4. Commit the change so that the build image script will generate a new tag for the image
+5. Run the docker build script to build and push a new image with the updated code
+
+- ```bash
+  PUSH_IMAGES=true ./bin/build_docker_images.sh
+  ```
+
+6. Update the timestamp server deployment in your cluster to use the new image:
+
+- ```bash
+  kubectl set image -n demo-apps deployment/timestamp timestamp=ryderstorm/xyz-demo-timestamp-server:$(git rev-parse --short HEAD)
+  ```
+
+Watch the output of the monitoring script to verify that the timestamp app endpoint is still available during the update and seamlessly switches to the new version of the app.
+
+> :warning: Don't forget to revert the change to `apps/timestamp-server/server.rb` after you're done testing.
