@@ -6,15 +6,20 @@
 
 set -e
 
-# Import helper library
+# Start timer
+START_TIME=$(date +%s)
+
+# Import helper libriaries
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
 
 trap trap_cleanup ERR SIGINT SIGTERM
 
+# Check for required apps
 declare -A REQUIRED_APPS=(
   ["awscli"]="aws --version ||| https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions"
+  ["dig"]="dig -v ||| https://www.isc.org/bind/"
   ["helm"]="helm version --client ||| https://helm.sh/docs/intro/install/"
   ["jq"]="jq --version ||| https://stedolan.github.io/jq/download/"
   ["kubectl"]="kubectl version --client ||| https://kubernetes.io/docs/tasks/tools/#kubectl"
@@ -23,63 +28,62 @@ declare -A REQUIRED_APPS=(
 export REQUIRED_APPS
 check_installed_apps
 
-# Prompt the user for which cloud service to use
-spacer
-echo -e "${WHITE}What type of k8s cluster do you want to create?${NC}"
-select cluster_type in "AWS" "DigitalOcean" "k3s (local)" "Quit"; do
-  case $cluster_type in
-    AWS ) cluster_type=aws; break;;
-    DigitalOcean ) cluster_type=digital_ocean; break;;
-    "k3s (local)" ) cluster_type=k3s; break;;
-    Quit ) graceful_exit 0;;
-  esac
-done
-
-export TF_VAR_selected_cluster_type=$cluster_type
-
-spacer
-# Initialize Terraform
-log_info "Initializing Terraform..."
-run_command "cd $SCRIPT_DIR/../terraform"
-run_command "terraform init"
-
-# Validate Terraform
-log_info "Validating Terraform..."
-run_command "terraform validate"
-
-# Run Terraform plan
-log_info "Running Terraform plan..."
-run_command "terraform plan -out=tfplan"
-
-# Prompt user to continue with a yes/no unless the first parameter is "confirm"
-if [ "$1" != "confirm" ]; then
-  spacer
-  if ! prompt_yes_no "Do you want to continue with the Terraform apply?"; then
-    graceful_exit 0
-  fi
+# Handle if the user wants to skip the confirmation prompt
+if [ "$1" == "confirm" ]; then
+  export USER_CONFIRMED=true
 fi
 
-# Run Terraform apply
-log_info "Running Terraform apply..."
-run_command "terraform apply tfplan"
+# =================================================================================================
+# Main Script
+# =================================================================================================
 
-# write the state to a file for debugging
-log_info "Writing Terraform state to file..."
-run_command "terraform show -json tfplan > tfplan_output.json"
-
-log_success "Terraform has finished setting up the EKS cluster."
-
-k8s_clear_stale_kubectl_data
-# set the cluster context based on the cluster type
-case $cluster_type in
-  aws ) k8s_set_context_to_aws_cluster;;
-  digital_ocean ) k8s_set_context_to_digital_ocean_cluster;;
-  k3s ) k8s_set_context_to_new_cluster;;
-esac
-
+prompt_for_cluster_type
 
 spacer
+# If the cluster type is k3s
+if [ "$CLUSTER_TYPE" == "k3s" ]; then
+  # Use k3s to create the cluster
+  if k3s_installed && k8s_running; then
+    k3s_show_reinstall_warning
+  else
+    install_k3s
+  fi
+else
+  # Use Terraform to create the cluster
+  log_info "Initializing Terraform..."
+  run_command "cd $SCRIPT_DIR/../terraform"
+  run_command "terraform init"
 
+  # Validate Terraform
+  log_info "Validating Terraform..."
+  run_command "terraform validate"
+
+  # Run Terraform plan
+  log_info "Running Terraform plan..."
+  run_command "terraform plan -out=tfplan"
+
+  # Prompt user to continue with a yes/no unless the first parameter is "confirm"
+  if ! user_confirmed; then
+    spacer
+    if ! prompt_yes_no "Do you want to continue with the Terraform apply?"; then
+      graceful_exit 0
+    fi
+  fi
+
+  # Run Terraform apply
+  log_info "Running Terraform apply..."
+  run_command "terraform apply tfplan"
+
+  # write the state to a file for debugging
+  log_info "Writing Terraform state to file..."
+  run_command "terraform show -json tfplan > tfplan_output.json"
+
+  log_success "Terraform has finished setting up the k8s cluster."
+fi
+
+k8s_set_context_to_new_cluster
+
+spacer
 set_up_k8s_cluster
 
 # Install Traefik and the demo apps
@@ -87,10 +91,11 @@ k8s_install_traefik
 k8s_install_demo_apps
 
 spacer
-
-log_success "Cluster apps are installed and ready to use."
-log_info "You can access apps in the cluster at the following URLs:"
 report_access_points
-
+report_duration
 k8s_set_up_dashboard_proxy
+if [ "$cluster_type" == "k3s" ]; then
+  spacer
+  log_warn "Before you can access the cluster in this console, you need to run the following command:\n${BLUE}export KUBECONFIG=tmp/k3s.yaml${NC}"
+fi
 graceful_exit

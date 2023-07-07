@@ -4,8 +4,8 @@ variable "project_name" {
   type        = string
 }
 
-# This is set by TF_VAR_selected_cluster_type in lib/set_envs.sh
-variable "selected_cluster_type" {
+# This is set by TF_VAR_cluster_type in lib/set_envs.sh
+variable "cluster_type" {
   description = "Cloud service specified by the user"
   type        = string
   default     = "aws"

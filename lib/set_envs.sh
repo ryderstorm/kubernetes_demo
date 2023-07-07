@@ -20,6 +20,10 @@ if [ -z "$DEMO_APPS" ]; then
   DEMO_APPS='"whoami" "nginx-hello" "timestamp" "ubuntu-testbed"'
 fi
 
+# Set the default amount of time to wait for a response from Traefik
+if [ -z "$TRAEFIK_TIMEOUT" ]; then
+  TRAEFIK_TIMEOUT=600
+fi
 # =================================================================================================
 # AWS
 # =================================================================================================
@@ -49,11 +53,6 @@ fi
 if [ -z "$PROJECT_NAME" ]; then
   PROJECT_NAME="xyz-demo"
   export TF_VAR_project_name="$PROJECT_NAME"
-fi
-
-# Set the local host name for the k3s cluster
-if [ -z "$LOCAL_HOSTNAME" ]; then
-  LOCAL_HOSTNAME="k8s.local"
 fi
 
 # =================================================================================================

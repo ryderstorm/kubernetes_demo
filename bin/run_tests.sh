@@ -12,32 +12,27 @@ source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
 trap trap_cleanup ERR SIGINT SIGTERM
 
+# Check for required apps
+declare -A REQUIRED_APPS=(
+  ["ruby"]="ruby --version ||| https://www.ruby-lang.org/en/documentation/installation/"
+  ["kubectl"]="kubectl version --client ||| https://kubernetes.io/docs/tasks/tools/#kubectl"
+)
+export REQUIRED_APPS
+check_installed_apps
+
 # =================================================================================================
 # Main Script
 # =================================================================================================
 
-# prompt the user for if they are running a local cluster or an EKS cluster
+prompt_for_cluster_type
 spacer
-cluster_type=""
-echo -e "${YELLOW}Are you running a local cluster or an EKS cluster?${NC}"
-select yn in "Local" "EKS"; do
-  case $yn in
-    Local ) cluster_type="local"; break;;
-    EKS ) cluster_type="eks"; break;;
-  esac
-done
-
-if [ "$cluster_type" == "eks" ]; then
-  k8s_set_context_to_aws_eks
-else
-  export KUBECONFIG="tmp/k3s.yaml"
-  export RUNNING_K3S=true
-fi
-
-spacer
+k8s_set_context_to_new_cluster
 traefik_set_endpoints
+
+spacer
 log_info "Setting up for responsiveness test..."
 run_command "bundle install"
 
 spacer
+log_info "Running tests..."
 rspec "$SCRIPT_DIR/../spec/responsiveness_spec.rb"
