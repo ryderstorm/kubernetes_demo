@@ -82,8 +82,28 @@ trap_cleanup() {
   if [ -n "$SCRIPT_DIR" ]; then
     cd "$SCRIPT_DIR/../" || true
   fi
+  report_duration || true
   log_error "Exiting because the script encountered an error or was interrupted."
   graceful_exit
+}
+
+# Function to check if the user pre-confirmed the script
+user_confirmed() {
+  if [ "$USER_CONFIRMED" = true ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Function to report script duration
+report_duration() {
+  spacer
+  SCRIPT_STOP=$(date +%s)
+  SCRIPT_TIME=$((SCRIPT_STOP - SCRIPT_START))
+  SCRIPT_MINUTES=$((SCRIPT_TIME / 60))
+  SCRIPT_SECONDS=$((SCRIPT_TIME % 60))
+  log_info "Total time to run script: ${BLUE}$SCRIPT_MINUTES minutes, $SCRIPT_SECONDS seconds${NC}"
 }
 
 # Function for running a command and reporting success or failure
@@ -131,6 +151,7 @@ graceful_exit() {
   # if no exit code is provided, default to 0
   exit_code=${1:-0}
   spacer
+  report_duration || true
   echo -e "${YELLOW}Exiting...${NC}"
   exit "$exit_code"
 }
@@ -141,6 +162,22 @@ terraform_dir() {
 
 current_commit_sha() {
   git rev-parse --short HEAD
+}
+
+prompt_for_cluster_type() {
+  spacer
+  echo -e "${WHITE}What type of k8s cluster are you working with?${NC}"
+  select cluster_type in "AWS" "DigitalOcean" "k3s (local)" "Quit"; do
+    case $cluster_type in
+      AWS ) cluster_type=aws; break;;
+      DigitalOcean ) cluster_type=digital-ocean; break;;
+      "k3s (local)" ) cluster_type=k3s; break;;
+      Quit ) graceful_exit 0;;
+    esac
+  done
+  export CLUSTER_TYPE=$cluster_type
+  export TF_VAR_cluster_type=$cluster_type
+  export LOCAL_HOSTNAME="k8s-cluster-$CLUSTER_TYPE.local"
 }
 
 # =================================================================================================
@@ -196,7 +233,7 @@ install_k3s() {
   spacer
   log_info "${WHITE}This script will install k3s onto your local machine.${NC}"
   log_warn "${WHITE}You will be prompted for your sudo password during the installation process.${NC}"
-  if [ "$1" != "confirm" ] && ! prompt_yes_no "Do you wish to continue?"; then
+  if ! user_confirmed && ! prompt_yes_no "Do you wish to continue?"; then
     graceful_exit 0
   fi
 
@@ -205,10 +242,6 @@ install_k3s() {
   # the --write-kubeconfig-mode 644 flag allows k3s to be run as a non-root user
   run_command "curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--write-kubeconfig-mode 644 --disable=traefik' sh -"
   log_success "Successfully installed k3s."
-  log_info "Configuring kubectl to work with new k3s cluster..."
-  run_command "cp /etc/rancher/k3s/k3s.yaml $SCRIPT_DIR/../tmp/k3s.yaml"
-  run_command "export KUBECONFIG=$ROOT_DIR/tmp/k3s.yaml"
-  run_command "kubectl config rename-context default k3s-local"
 }
 
 k3s_show_reinstall_warning() {
@@ -218,7 +251,7 @@ k3s_show_reinstall_warning() {
   log_warn "${BLUE}/usr/local/bin/k3s-uninstall.sh${NC}"
   log_warn "And run this script again."
   spacer
-  if [ "$1" != "confirm" ] && ! prompt_yes_no "Do you wish to continue and reapply the cluster configuration to the existing cluster?"; then
+  if ! user_confirmed && ! prompt_yes_no "Do you wish to continue and re-apply the cluster configuration to the existing cluster?"; then
     graceful_exit 0
   fi
 }
@@ -231,16 +264,40 @@ k8s_running() {
   kubectl get nodes &>/dev/null && return 0 || return 1
 }
 
-k8s_set_context_to_aws_eks() {
-  unset KUBECONFIG
-  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw cluster_name)
-  if [ "$(kubectl config current-context 2>/dev/null)" != "$cluster_name" ]; then
-    spacer
-    log_info "Configuring kubectl to work with the EKS cluster..."
-    run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
-    run_command "aws eks --region $AWS_REGION update-kubeconfig --name $cluster_name"
-    run_command "kubectl config rename-context $(kubectl config current-context) $cluster_name"
-  fi
+k8s_set_context_to_new_cluster() {
+  # set the cluster context based on the cluster type
+  log_info "Setting kubectl context to new cluster..."
+  run_command "unset KUBECONFIG"
+  run_command "kubectl config unset current-context"
+  run_command "kubectl config use-context default"
+  case $CLUSTER_TYPE in
+    aws ) k8s_set_context_to_aws_cluster;;
+    digital-ocean ) k8s_set_context_to_digital_ocean_cluster;;
+    k3s ) k8s_set_context_k3s_cluster;;
+    * ) log_error "Unknown cluster type: $CLUSTER_TYPE"; graceful_exit 1;;
+  esac
+}
+
+k8s_set_context_to_aws_cluster() {
+  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw aws_cluster_name)
+  run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
+  run_command "aws eks --region $AWS_REGION update-kubeconfig --name $cluster_name"
+}
+
+k8s_set_context_to_digital_ocean_cluster() {
+  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw do_cluster_name)
+  cluster_id=$(terraform -chdir="$(terraform_dir)" output -raw do_cluster_id)
+  log_info "Cluster name: $cluster_name"
+  log_info "Cluster ID: $cluster_id"
+  # run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
+  run_command "kubectl config delete-context $cluster_name || true"
+  run_command "doctl kubernetes cluster kubeconfig save --alias $cluster_name $cluster_id"
+}
+
+k8s_set_context_k3s_cluster() {
+  run_command "cp /etc/rancher/k3s/k3s.yaml $SCRIPT_DIR/../tmp/k3s.yaml"
+  run_command "export KUBECONFIG=$ROOT_DIR/tmp/k3s.yaml"
+  run_command "kubectl config rename-context default k3s-local"
 }
 
 k8s_clear_stale_kubectl_data() {
@@ -249,7 +306,6 @@ k8s_clear_stale_kubectl_data() {
   run_command "kubectl config get-contexts -o name | grep '$PROJECT_NAME' | xargs -I {} kubectl config delete-context {}"
   run_command "kubectl config get-clusters -o name | grep '$PROJECT_NAME' | xargs -I {} kubectl config delete-cluster {}"
   run_command "kubectl config get-users -o name | grep '$PROJECT_NAME' | xargs -I {} kubectl config delete-user {}"
-  run_command "kubectl config unset current-context"
 }
 
 k8s_dashboard_installed() {
@@ -341,13 +397,12 @@ k8s_wait_for_pod() {
   command="kubectl get pods -n '$namespace' -l '$labels' -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null"
   log_info "Waiting for pod with labels [$labels] to be ready with command:\n${BLUE}$command${NC}"
   printf '...'
-  TIMEOUT=60
   START_TIME=$(date +%s)
   while true; do
     CURRENT_TIME=$(date +%s)
     ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
-    if [[ $ELAPSED_TIME -gt $TIMEOUT ]]; then
-      log_error "Timed out after waiting $TIMEOUT seconds for pod with labels [$labels] to be ready."
+    if [[ $ELAPSED_TIME -gt $POD_TIMEOUT ]]; then
+      log_error "Timed out after waiting $POD_TIMEOUT seconds for pod with labels [$labels] to be ready."
       return 1
     fi
     status=$(eval "$command")
@@ -360,7 +415,7 @@ k8s_wait_for_pod() {
     sleep 1
   done
   echo -e "\n"
-  log_error "Timed out after waiting $TIMEOUT seconds for pod with labels [$labels] to be ready."
+  log_error "Timed out after waiting $POD_TIMEOUT seconds for pod with labels [$labels] to be ready."
   return 1
 }
 
@@ -391,19 +446,15 @@ k8s_install_traefik() {
   values_file="$SCRIPT_DIR/../kubernetes/helm/values/traefik/traefik-values.yaml"
   command="helm upgrade --install --create-namespace --values=$values_file -n traefik traefik traefik/traefik"
   run_command "$command"
-  if ! k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik" && ! traefik_wait_for_endpoint; then
-    log_error "Failed to install Traefik."
-    graceful_exit 1
-  fi
+  k8s_wait_for_pod "traefik" "app.kubernetes.io/name=traefik"
   dashboard_file="$SCRIPT_DIR/../kubernetes/deployments/traefik/traefik-dashboard.yaml"
   command="cat '$dashboard_file' | sed 's/KUBERNETES_HOSTNAME/Host(\`traefik.$LOCAL_HOSTNAME\`)/g' | kubectl apply -f -"
   run_command "$command"
-  log_success "Successfully installed Traefik. Please try running this script again."
+  log_success "Successfully installed Traefik."
 }
 
 k8s_install_demo_apps() {
   set_docker_hub_secret "demo-apps"
-  traefik_set_endpoints
   chart_folder="$SCRIPT_DIR/../kubernetes/helm/demo_app"
   values_folder="$SCRIPT_DIR/../kubernetes/helm/values/demo_apps"
   for values_file in "$values_folder"/*; do
@@ -438,6 +489,20 @@ k8s_set_up_dashboard_proxy() {
 traefik_set_endpoints() {
   lb_endpoint=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
   ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  # if the ip is empty, get the IP via dig and the load balancer endpoint
+  if [ -z "$ip" ]; then
+    # Try to resolve the endpoint as a domain name or IP address
+    if [[ "$lb_endpoint" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      ip="$lb_endpoint"
+    else
+      ip=$(dig +short "$lb_endpoint" 2>/dev/null | head -n 1)
+
+      # Check if the result is an IP address
+      if ! [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        return 1
+      fi
+    fi
+  fi
   export LOAD_BALANCER_ENDPOINT=$lb_endpoint
   export CLUSTER_ENDPOINT=$LOCAL_HOSTNAME
   export CLUSTER_IP=$ip
@@ -445,19 +510,20 @@ traefik_set_endpoints() {
 }
 
 traefik_wait_for_endpoint() {
-  printf "Waiting for Traefik load balancer to be ready..."
-  TIMEOUT=60
+  log_info "Waiting for Traefik load balancer to be ready..."
   START_TIME=$(date +%s)
   while true; do
     CURRENT_TIME=$(date +%s)
     ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
-    if [ $ELAPSED_TIME -gt $TIMEOUT ]; then
+    if [ $ELAPSED_TIME -gt $TRAEFIK_TIMEOUT ]; then
       spacer
       log_error "Timed out waiting for Traefik load balancer to be ready."
       graceful_exit 1
     fi
-    if curl -s -o /dev/null --fail "http://$CLUSTER_IP/dashboard/"; then
+
+    if traefik_set_endpoints && curl -s -o /dev/null --fail "http://$CLUSTER_IP/dashboard/"; then
       echo ""
+      log_success "Traefik load balancer is responding."
       return 0
     fi
     printf "."
@@ -466,9 +532,11 @@ traefik_wait_for_endpoint() {
 }
 
 report_access_points() {
-  traefik_set_endpoints
+  log_info "Gathering info about access points for Traefik and demo apps..."
+  traefik_wait_for_endpoint
   app_hosts=$(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].spec.rules[*].host}')
-  if [ ! "$RUNNING_K3S" = true ]; then
+  log_info "You can access apps in the cluster at the following URLs:"
+  if [ -n "$LOAD_BALANCER_ENDPOINT" ]; then
     log_info "Load balancer endpoint: ${BLUE}http://$LOAD_BALANCER_ENDPOINT${NC}"
   fi
   log_info "Cluster endpoint: ${BLUE}http://$CLUSTER_ENDPOINT${NC}"

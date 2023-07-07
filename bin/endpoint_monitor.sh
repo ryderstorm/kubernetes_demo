@@ -1,23 +1,22 @@
 #!/bin/bash
 
 # =================================================================================================
-# This script runs the responsiveness test for the demo apps in the Kubernetes cluster.
+# This script runs a load test against the timestamp app.
 # =================================================================================================
 
 set -e
 
-# Start timer
-SCRIPT_START=$(date +%s)
-
-# Import helper library
+# Import helper libriaries
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
 source "$SCRIPT_DIR/../lib/helpers.sh"
+
 trap trap_cleanup ERR SIGINT SIGTERM
 
 # Check for required apps
 declare -A REQUIRED_APPS=(
-  ["ruby"]="ruby --version ||| https://www.ruby-lang.org/en/documentation/installation/"
+  ["curl"]="curl --version ||| https://curl.se/download.html"
+  ["jq"]="jq --version ||| https://stedolan.github.io/jq/download/"
   ["kubectl"]="kubectl version --client ||| https://kubernetes.io/docs/tasks/tools/#kubectl"
 )
 export REQUIRED_APPS
@@ -27,15 +26,10 @@ check_installed_apps
 # Main Script
 # =================================================================================================
 
-prompt_for_cluster_type
-spacer
-k8s_set_context_to_new_cluster
-traefik_set_endpoints
-
-spacer
-log_info "Setting up tests..."
-run_command "bundle install"
-
-spacer
-rspec "$SCRIPT_DIR/../spec/responsiveness_spec.rb"
-report_duration
+host=$(kubectl get ingress -n demo-apps -l app=timestamp -o jsonpath='{.items[*].spec.rules[*].host}')
+while true; do
+  version=$(curl -s "$host/version" | jq -r '.version')
+  message=$(curl -s "$host" | jq -r '.message')
+  echo -e "$(date) | ${BLUE}$version${NC} | ${YELLOW}$message${NC}"
+  sleep 0.25
+done

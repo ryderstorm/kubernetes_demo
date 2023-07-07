@@ -3,3 +3,6 @@ apps/ubuntu-testbed/TIMESTAMP
 apps/ubuntu-testbed/VERSION
 apps/timestamp-server/TIMESTAMP
 apps/timestamp-server/VERSION
+bin/local_testing.sh
+bin/run_k9s.sh
+.tmuxinator.yml

@@ -1,18 +1,18 @@
-# Import the EKS module to create the cluster
 module "eks" {
   source = "./modules/eks"
 
-  aws_region     = var.aws_region
+  region         = var.aws_region
   project_name   = var.project_name
-  instance_types = var.instance_types
+  instance_types = var.aws_instance_types
+  cluster_type   = var.cluster_type
 }
 
-module "helm" {
-  source = "./modules/helm"
+module "do_k8s" {
+  source = "./modules/do_k8s"
 
-  project_name                       = var.project_name
-  cluster_name                       = module.eks.cluster_name
-  cluster_endpoint                   = module.eks.cluster_endpoint
-  cluster_certificate_authority_data = module.eks.cluster_certificate_authority_data
+  region         = var.do_region
+  project_name   = var.project_name
+  instance_types = var.do_instance_types
+  cluster_type   = var.cluster_type
+  do_token       = var.do_token
 }
-
