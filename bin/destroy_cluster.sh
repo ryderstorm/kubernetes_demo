@@ -16,6 +16,13 @@ source "$SCRIPT_DIR/../lib/helpers.sh"
 
 trap trap_cleanup ERR SIGINT SIGTERM
 
+# Check for required apps
+declare -A REQUIRED_APPS=(
+  ["terraform"]="terraform version ||| https://learn.hashicorp.com/tutorials/terraform/install-cli"
+)
+export REQUIRED_APPS
+check_installed_apps
+
 # Handle if the user wants to skip the confirmation prompt
 if [ "$1" == "confirm" ]; then
   export USER_CONFIRMED=true
@@ -25,17 +32,21 @@ fi
 # Main Script
 # =================================================================================================
 
-if ! user_confirmed; then
-  spacer
+prompt_for_cluster_type
+
+spacer
+if [ "$CLUSTER_TYPE" == "k3s" ]; then
+  log_info "Uninstalling k3s..."
+  run_command "/usr/local/bin/k3s-uninstall.sh"
+else
   log_warn "This script will use Terraform to destroy all managed resources."
   if ! prompt_yes_no "Do you want to continue with the Terraform destroy?"; then
     graceful_exit 0
   fi
+  spacer
+  log_info "Running Terraform Destroy..."
+  run_command "cd $SCRIPT_DIR/../terraform"
+  run_command "terraform destroy -auto-approve"
 fi
-spacer
-log_info "Running Terraform Destroy..."
-run_command "cd $SCRIPT_DIR/../terraform"
-run_command "terraform destroy -auto-approve"
-
 report_duration
 graceful_exit

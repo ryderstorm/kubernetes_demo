@@ -6,6 +6,9 @@
 
 set -e
 
+# Start timer
+SCRIPT_START=$(date +%s)
+
 # Import helper library
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source "$SCRIPT_DIR/../lib/set_envs.sh"
@@ -30,9 +33,9 @@ k8s_set_context_to_new_cluster
 traefik_set_endpoints
 
 spacer
-log_info "Setting up for responsiveness test..."
+log_info "Setting up tests..."
 run_command "bundle install"
 
 spacer
-log_info "Running tests..."
 rspec "$SCRIPT_DIR/../spec/responsiveness_spec.rb"
+report_duration

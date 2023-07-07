@@ -82,6 +82,7 @@ trap_cleanup() {
   if [ -n "$SCRIPT_DIR" ]; then
     cd "$SCRIPT_DIR/../" || true
   fi
+  report_duration || true
   log_error "Exiting because the script encountered an error or was interrupted."
   graceful_exit
 }
@@ -491,7 +492,17 @@ traefik_set_endpoints() {
   ip=$(kubectl get svc traefik -n traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
   # if the ip is empty, get the IP via dig and the load balancer endpoint
   if [ -z "$ip" ]; then
-    ip=$(dig +short "$lb_endpoint" | head -n 1)
+    # Try to resolve the endpoint as a domain name or IP address
+    if [[ "$lb_endpoint" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      ip="$lb_endpoint"
+    else
+      ip=$(dig +short "$lb_endpoint" 2>/dev/null | head -n 1)
+
+      # Check if the result is an IP address
+      if ! [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        return 1
+      fi
+    fi
   fi
   export LOAD_BALANCER_ENDPOINT=$lb_endpoint
   export CLUSTER_ENDPOINT=$LOCAL_HOSTNAME
@@ -510,8 +521,11 @@ traefik_wait_for_endpoint() {
       log_error "Timed out waiting for Traefik load balancer to be ready."
       graceful_exit 1
     fi
-    if curl -s -o /dev/null --fail "http://$CLUSTER_IP/dashboard/"; then
+
+    traefik_set_endpoints
+    if traefik_set_endpoints && curl -s -o /dev/null --fail "http://$CLUSTER_IP/dashboard/"; then
       echo ""
+      log_success "Traefik load balancer is responding."
       return 0
     fi
     printf "."
@@ -520,6 +534,7 @@ traefik_wait_for_endpoint() {
 }
 
 report_access_points() {
+  log_info "Gathering info about access points for Traefik and demo apps..."
   traefik_set_endpoints
   traefik_wait_for_endpoint
   app_hosts=$(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].spec.rules[*].host}')
