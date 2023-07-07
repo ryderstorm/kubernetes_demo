@@ -278,15 +278,15 @@ k8s_set_context_to_new_cluster() {
   esac
 }
 
-k8s_set_context_to_aws_eks() {
-  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw cluster_name)
+k8s_set_context_to_aws_cluster() {
+  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw aws_cluster_name)
   run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
   run_command "aws eks --region $AWS_REGION update-kubeconfig --name $cluster_name"
 }
 
 k8s_set_context_to_digital_ocean_cluster() {
-  cluster_name=$(terraform -chdir="$(terraform_dir)" output -json cluster_name | jq -r '.[0]')
-  cluster_id=$(terraform -chdir="$(terraform_dir)" output -json cluster_id | jq -r '.[0]')
+  cluster_name=$(terraform -chdir="$(terraform_dir)" output -raw do_cluster_name)
+  cluster_id=$(terraform -chdir="$(terraform_dir)" output -raw do_cluster_id)
   log_info "Cluster name: $cluster_name"
   log_info "Cluster ID: $cluster_id"
   # run_command "kubectl config delete-context $cluster_name &> /dev/null || true"
@@ -397,13 +397,12 @@ k8s_wait_for_pod() {
   command="kubectl get pods -n '$namespace' -l '$labels' -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null"
   log_info "Waiting for pod with labels [$labels] to be ready with command:\n${BLUE}$command${NC}"
   printf '...'
-  TIMEOUT=60
   START_TIME=$(date +%s)
   while true; do
     CURRENT_TIME=$(date +%s)
     ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
-    if [[ $ELAPSED_TIME -gt $TIMEOUT ]]; then
-      log_error "Timed out after waiting $TIMEOUT seconds for pod with labels [$labels] to be ready."
+    if [[ $ELAPSED_TIME -gt $POD_TIMEOUT ]]; then
+      log_error "Timed out after waiting $POD_TIMEOUT seconds for pod with labels [$labels] to be ready."
       return 1
     fi
     status=$(eval "$command")
@@ -416,7 +415,7 @@ k8s_wait_for_pod() {
     sleep 1
   done
   echo -e "\n"
-  log_error "Timed out after waiting $TIMEOUT seconds for pod with labels [$labels] to be ready."
+  log_error "Timed out after waiting $POD_TIMEOUT seconds for pod with labels [$labels] to be ready."
   return 1
 }
 
@@ -522,7 +521,6 @@ traefik_wait_for_endpoint() {
       graceful_exit 1
     fi
 
-    traefik_set_endpoints
     if traefik_set_endpoints && curl -s -o /dev/null --fail "http://$CLUSTER_IP/dashboard/"; then
       echo ""
       log_success "Traefik load balancer is responding."
@@ -535,7 +533,6 @@ traefik_wait_for_endpoint() {
 
 report_access_points() {
   log_info "Gathering info about access points for Traefik and demo apps..."
-  traefik_set_endpoints
   traefik_wait_for_endpoint
   app_hosts=$(kubectl get ingress -n demo-apps -o jsonpath='{.items[*].spec.rules[*].host}')
   log_info "You can access apps in the cluster at the following URLs:"

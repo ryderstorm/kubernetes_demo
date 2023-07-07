@@ -7,30 +7,21 @@ terraform {
   }
 }
 
-
 provider "digitalocean" {
   token = var.do_token
-}
-
-locals {
-  project_name   = var.project_name
-  region         = var.region
-  cluster_name   = "${var.project_name}-dok8s"
-  instance_types = var.instance_types
-  cluster_type   = var.cluster_type
 }
 
 resource "digitalocean_kubernetes_cluster" "do_k8s_cluster" {
   # Load this resource only if the "cluster_type" environment variable is set to "digitalocean"
   count = var.cluster_type == "digital-ocean" ? 1 : 0
 
-  name    = local.cluster_name
-  region  = local.region
+  name    = "${var.project_name}-dok8s"
+  region  = var.region
   version = "1.27.2-do.0"
 
   node_pool {
     name       = "default-pool"
-    size       = local.instance_types[0]
+    size       = var.instance_types[0]
     node_count = 2
   }
 }

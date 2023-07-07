@@ -23,13 +23,12 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = var.region
 }
 
 data "aws_availability_zones" "available" {}
 
 locals {
-  project_name   = var.project_name
   cluster_name   = "${var.project_name}-eks-${random_string.suffix.result}"
   instance_types = var.instance_types
 }
@@ -46,7 +45,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.19.0"
 
-  name = "${local.project_name}-vpc"
+  name = "${var.project_name}-vpc"
 
   cidr = "10.0.0.0/16"
   azs  = slice(data.aws_availability_zones.available.names, 0, 3)
@@ -79,8 +78,8 @@ module "eks" {
   cluster_name    = local.cluster_name
   cluster_version = "1.24"
 
-  vpc_id                         = module.vpc.vpc_id
-  subnet_ids                     = module.vpc.private_subnets
+  vpc_id                         = module.vpc[0].vpc_id
+  subnet_ids                     = module.vpc[0].private_subnets
   cluster_endpoint_public_access = true
 
   eks_managed_node_group_defaults = {
@@ -90,20 +89,10 @@ module "eks" {
   eks_managed_node_groups = {
     one = {
       name           = "node-group-1"
-      instance_types = local.instance_types
+      instance_types = var.instance_types
       min_size       = 1
       max_size       = 3
       desired_size   = 2
-    }
-
-    two = {
-      name = "node-group-2"
-
-      instance_types = local.instance_types
-
-      min_size     = 1
-      max_size     = 2
-      desired_size = 1
     }
   }
 }

@@ -24,6 +24,11 @@ fi
 if [ -z "$TRAEFIK_TIMEOUT" ]; then
   TRAEFIK_TIMEOUT=600
 fi
+# Set the default amount of time to wait for a response from pod
+if [ -z "$POD_TIMEOUT" ]; then
+  POD_TIMEOUT=600
+fi
+
 # =================================================================================================
 # AWS
 # =================================================================================================
