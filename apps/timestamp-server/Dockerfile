@@ -1,4 +1,4 @@
-FROM ruby:3.2.2
+FROM ruby:3.3.5
 
 # Create a non-root user to run the app
 RUN groupadd -r appuser && useradd -r -g appuser appuser
