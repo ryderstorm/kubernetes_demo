@@ -2,14 +2,18 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.2)
+    bigdecimal (3.3.1)
     colorize (0.8.1)
+    csv (3.3.5)
     diff-lcs (1.5.0)
-    httparty (0.21.0)
+    httparty (0.24.0)
+      csv
       mini_mime (>= 1.0.0)
       multi_xml (>= 0.5.2)
     json (2.6.3)
-    mini_mime (1.1.2)
-    multi_xml (0.6.0)
+    mini_mime (1.1.5)
+    multi_xml (0.7.1)
+      bigdecimal (~> 3.1)
     parallel (1.23.0)
     parser (3.2.2.3)
       ast (~> 2.4.1)
@@ -51,9 +55,9 @@ PLATFORMS
 
 DEPENDENCIES
   colorize
-  httparty
+  httparty (>= 0.24.0)
   rspec
   rubocop
 
 BUNDLED WITH
-   2.3.11
+   2.3.27
